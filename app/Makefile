@@ -76,7 +76,7 @@ app.o: driver.o
 # -----------------------------------------------------------------------------
 .PHONY: dust clean distclean info edit
 dust:
-	rm -f PET*.ESMF_LogFile
+	rm -f PET*.ESMF_LogFile fort.*
 clean:
 	rm -f LISHydroApp *.o *.mod
 distclean: dust clean

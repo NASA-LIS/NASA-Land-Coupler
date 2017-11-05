@@ -8,7 +8,8 @@ module ESM
   use NUOPC
   use NUOPC_Driver, &
     driver_routine_SS             => SetServices, &
-    driver_label_SetModelServices => label_SetModelServices
+    driver_label_SetModelServices => label_SetModelServices, &
+    driver_label_SetRunSequence => label_SetRunSequence
   
   use LIS_NUOPC, only: lndSS => SetServices
   use WRFHydro_NUOPC, only: hydSS => SetServices
@@ -49,14 +50,13 @@ module ESM
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-  
-!  call NUOPC_CompSpecialize(driver, specLabel=driver_label_SetRunSequence, &
-!      specRoutine=SetRunSequence, rc=rc)
-!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!      line=__LINE__, &
-!      file=__FILE__)) &
-!      return  ! bail out
-
+ 
+    call NUOPC_CompSpecialize(driver, specLabel=driver_label_SetRunSequence, &
+      specRoutine=SetRunSequence, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
        
    ! create, open and set the config
      config = ESMF_ConfigCreate(rc=rc)

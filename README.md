@@ -2,6 +2,12 @@
 Coupled hydrological application with LIS and WRF-Hydro
 
 ## Clone Instructions
+All instructions and scripts are based on tcsh, so go
+ahead and switch to it now.
+```
+$ tcsh
+```
+
 This will clone the repository including the submodules.
 ```
 $ git clone --recursive git@developer.nasa.gov:rsdunlap/lishydro.git
@@ -16,10 +22,6 @@ $ svn co https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
 ```
 
 ## Build Instructions
-Switch to tcsh shell
-```
-$ tcsh
-```
 
 Set LISHYDRO_DIR to location of cloned repository.
 ```

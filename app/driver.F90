@@ -29,6 +29,9 @@ module ESM
   subroutine SetServices(driver, rc)
     type(ESMF_GridComp)  :: driver
     integer, intent(out) :: rc
+
+    ! locals
+    type(ESMF_Config) :: config
     
     rc = ESMF_SUCCESS
     
@@ -53,6 +56,24 @@ module ESM
 !      line=__LINE__, &
 !      file=__FILE__)) &
 !      return  ! bail out
+
+       
+   ! create, open and set the config
+     config = ESMF_ConfigCreate(rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+     	 line=__LINE__, &
+      	 file=__FILE__)) &
+      	 return  ! bail out
+     call ESMF_ConfigLoadFile(config, "lishydro.runconfig", rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      	line=__LINE__, &
+      	file=__FILE__)) &
+      	return  ! bail out
+     call ESMF_GridCompSet(driver, config=config, rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      	line=__LINE__, &
+      	file=__FILE__)) &
+      	return  ! bail out
     
   end subroutine
 
@@ -70,10 +91,37 @@ module ESM
     type(ESMF_Clock)              :: internalClock
     type(ESMF_GridComp)           :: child
     type(ESMF_CplComp)            :: connector
+    type(ESMF_Config)             :: config	
+    type(NUOPC_FreeFormat)        :: attrFF
 
     rc = ESMF_SUCCESS
     
-    ! SetServices for ATM
+    ! read free format driver attributes
+    call ESMF_GridCompGet(driver, config=config, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    attrFF = NUOPC_FreeFormatCreate(config, label="driverAttributes::", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    ! ingest FreeFormat driver attributes
+    call NUOPC_CompAttributeIngest(driver, attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    ! clean-up
+    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+
+    ! SetServices for LND
     call NUOPC_DriverAddComp(driver, "LND", lndSS, comp=child, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -84,8 +132,27 @@ module ESM
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+    ! read LND attributes from config file into FreeFormat
+    attrFF = NUOPC_FreeFormatCreate(config, label="lndAttributes::", &
+      relaxedflag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompAttributeIngest(child, attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
     
-    ! SetServices for OCN
+    ! SetServices for HYD
     call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -96,6 +163,24 @@ module ESM
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+    ! read HYD attributes from config file into FreeFormat
+    attrFF = NUOPC_FreeFormatCreate(config, label="hydAttributes::", &
+      relaxedflag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompAttributeIngest(child, attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
 
 !    call NUOPC_DriverAddComp(driver, srcCompLabel="LND", dstCompLabel="HYD", &
 !      compSetServicesRoutine=cplSS, comp=connector, rc=rc)
@@ -152,9 +237,49 @@ module ESM
     
     ! local variables
     integer                       :: localrc
+    character(ESMF_MAXSTR)        :: name
+    type(ESMF_Config)             :: config
+    type(NUOPC_FreeFormat)        :: runSeqFF
 
     rc = ESMF_SUCCESS
+
+    ! query the Component for info
+    call ESMF_GridCompGet(driver, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
     
+    ! read free format run sequence from config
+    call ESMF_GridCompGet(driver, config=config, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    runSeqFF = NUOPC_FreeFormatCreate(config, label="runSeq::", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+      
+#if 1
+    call NUOPC_FreeFormatPrint(runSeqFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#endif
+
+    ! ingest FreeFormat run sequence
+    call NUOPC_DriverIngestRunSequence(driver, runSeqFF, &
+      autoAddConnectors=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+#if 0
+    ! Diagnostic output
+    call NUOPC_DriverPrint(driver, orderflag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#endif
+
+    ! clean-up
+    call NUOPC_FreeFormatDestroy(runSeqFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out     
+  
   end subroutine
 
   !-----------------------------------------------------------------------------

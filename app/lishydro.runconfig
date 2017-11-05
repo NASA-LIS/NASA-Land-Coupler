@@ -1,0 +1,26 @@
+###############################################
+####  LISHydro runtime configuration      #####
+###############################################
+
+# A concurrent run sequence
+runSeq::
+    @1800             # 30min time step 
+      LND
+      HYD
+    @
+::
+
+
+# Component attributes
+driverAttributes::
+  Verbosity = 0
+  Profiling = 0
+::
+
+lndAttributes::
+  Verbosity = high
+::
+
+hydAttributes::
+  Verbosity = high
+::

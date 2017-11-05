@@ -2,6 +2,12 @@
 Coupled hydrological application with LIS and WRF-Hydro
 
 ## Clone Instructions
+All instructions and scripts are based on tcsh, so go
+ahead and switch to it now.
+```
+$ tcsh
+```
+
 This will clone the repository including the submodules.
 ```
 $ git clone --recursive git@developer.nasa.gov:rsdunlap/lishydro.git
@@ -16,9 +22,10 @@ $ svn co https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
 ```
 
 ## Build Instructions
-Switch to tcsh shell
+
+Set LISHYDRO_DIR to location of cloned repository.
 ```
-$ tcsh
+$ setenv LISHYDRO_DIR /path/to/lishydro
 ```
 
 Source the modules and environment variables used for the build
@@ -31,7 +38,7 @@ Build LIS
 $ cd LIS
 $ ./configure    # accept all the default options
 $ cd runmodes/nuopc_cpl_mode
-$ make
+$ make nuopcinstall INSTPATH=$LISHYDRO_DIR/LIS-INSTALL
 ```
 
 Build WRF-Hydro

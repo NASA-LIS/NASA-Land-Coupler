@@ -21,6 +21,11 @@ Switch to tcsh shell
 $ tcsh
 ```
 
+Set LISHYDRO_DIR to location of cloned repository.
+```
+$ setenv LISHYDRO_DIR /path/to/lishydro
+```
+
 Source the modules and environment variables used for the build
 ```
 $ source env.discover.intel14   # load modules/env. vars for Intel 14
@@ -31,7 +36,7 @@ Build LIS
 $ cd LIS
 $ ./configure    # accept all the default options
 $ cd runmodes/nuopc_cpl_mode
-$ make
+$ make nuopcinstall INSTPATH=$LISHYDRO_DIR/LIS-INSTALL
 ```
 
 Build WRF-Hydro

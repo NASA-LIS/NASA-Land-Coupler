@@ -27,7 +27,7 @@ include $(ESMFMKFILE)
 COMMA := ,
 
 ### LIS dependencies ###
-include ../LIS/runmodes/nuopc_cpl_mode/lis.mk
+include $(LISHYDRO_LIS_INST)/lis.mk
 DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_LND=$(ESMF_DEP_FRONT)
 DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
 DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
@@ -37,7 +37,7 @@ DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) \
 DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 
 ### WRF-Hydro dependencies ###
-include ../wrf_hydro_nwm/trunk/NDHMS/CPL/NUOPC_cpl/wrfhydro.mk
+include $(LISHYDRO_WRFHYDRO_INST)/wrfhydro.mk
 DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_HYD=$(ESMF_DEP_FRONT)
 DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
 DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)

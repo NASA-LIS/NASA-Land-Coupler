@@ -8,7 +8,7 @@ ahead and switch to it now.
 $ tcsh
 ```
 
-This will clone the repository including the submodules.
+Clone the repository including the submodules:
 ```
 $ git clone --recursive git@developer.nasa.gov:rsdunlap/lishydro.git
 ```
@@ -46,7 +46,7 @@ Build WRF-Hydro
 $ cd wrf_hydro_nwm/trunk/NDHMS
 $ ./configure   # select option 3: "Linux ifort compiler dmpar"
 $ cd CPL/NUOPC_cpl
-$ make
+$ make nuopcinstall INSTPATH=$LISHYDRO_DIR/WRFHydro-INSTALL
 ```
 
 

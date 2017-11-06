@@ -38,9 +38,18 @@ $ svn co https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
 
 ## Build Instructions
 
-Source the modules and environment variables used for the build
+Source the modules and environment variables used for the build.
+There are options here for Discover and Cheyenne. Choose the
+right one for your platform.
+
+**On Discover**:
 ```
-$ source env.discover.intel14   # load modules/environment for Intel 14
+$ source env.discover.intel14 
+```
+
+**On Cheyenne**:
+```
+$ source env.cheyenne.intel17
 ```
 
 Build LIS

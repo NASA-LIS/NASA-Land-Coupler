@@ -33,7 +33,7 @@ required to check out LIS from subversion.  Hopefully, LIS
 will be moved into git soon and this step will be eliminated.
 ```
 $ cd $LISHYDRO_DIR/src    # go into src directory of cloned repository
-$ svn co https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
+$ svn co --username=<you> https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
 ```
 
 ## Build Instructions

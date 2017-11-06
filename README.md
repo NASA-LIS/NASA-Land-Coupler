@@ -8,8 +8,12 @@ ahead and switch to it now.
 $ tcsh
 ```
 
-Clone the repository including the submodules:
+Clone the repository including the submodules. 
 ```
+$ git clone --recursive git@github.com:NESII/lishydro.git
+
+# this repository is also available on internal NASA GitHub
+# (must be on NASA network or have VPN access)
 $ git clone --recursive git@developer.nasa.gov:rsdunlap/lishydro.git
 ```
 

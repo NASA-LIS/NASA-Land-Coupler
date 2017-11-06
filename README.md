@@ -4,10 +4,13 @@ Coupled hydrological application with LIS and WRF-Hydro
 ## SSH keys
 We are using ssh URLs for cloning submodules, so you will
 need to ensure that you have added your public SSH key from
-Discover to your GitHub account.
+your platform (Discover and/or Cheyenne) to your GitHub account.
+Help is available here:
+https://help.github.com/articles/connecting-to-github-with-ssh/
 
 ## Clone Instructions
-So far, these have been tested on **NASA Discover**.
+These have been tested on **Discover (NASA)** and 
+**Cheyenne (NCAR)**.
 All instructions and scripts are based on tcsh, so go
 ahead and switch to it now.
 ```
@@ -33,14 +36,23 @@ required to check out LIS from subversion.  Hopefully, LIS
 will be moved into git soon and this step will be eliminated.
 ```
 $ cd $LISHYDRO_DIR/src    # go into src directory of cloned repository
-$ svn co https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
+$ svn co --username=<you> https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
 ```
 
 ## Build Instructions
 
-Source the modules and environment variables used for the build
+Source the modules and environment variables used for the build.
+There are options here for Discover and Cheyenne. Choose the
+right one for your platform.
+
+**On Discover**:
 ```
-$ source env.discover.intel14   # load modules/environment for Intel 14
+$ source env.discover.intel14 
+```
+
+**On Cheyenne**:
+```
+$ source env.cheyenne.intel17
 ```
 
 Build LIS

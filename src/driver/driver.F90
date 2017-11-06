@@ -93,7 +93,9 @@ module ESM
     type(ESMF_CplComp)            :: connector
     type(ESMF_Config)             :: config	
     type(NUOPC_FreeFormat)        :: attrFF
-
+    integer, allocatable          :: petList(:)
+    integer                       :: dt 
+    
     rc = ESMF_SUCCESS
     
     ! read free format driver attributes
@@ -107,26 +109,42 @@ module ESM
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    ! ingest FreeFormat driver attributes
     call NUOPC_CompAttributeIngest(driver, attrFF, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    ! clean-up
     call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-
-    ! SetServices for LND
-    call NUOPC_DriverAddComp(driver, "LND", lndSS, comp=child, rc=rc)
+    ! get PET lists from config
+    call getPetListFromConfig(config, "pets_lnd:", petList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out  
+    
+    ! SetServices for LND
+    if (allocated(petList)) then
+#if 1
+       print *, "LND petList = ", petList
+#endif
+       call NUOPC_DriverAddComp(driver, "LND", lndSS, petList=petList, comp=child, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out  
+       deallocate(petList)
+    else
+       call NUOPC_DriverAddComp(driver, "LND", lndSS, comp=child, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out  
+    endif    
     call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -152,12 +170,30 @@ module ESM
       return  ! bail out
 
     
-    ! SetServices for HYD
-    call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
+    ! get PET lists from config
+    call getPetListFromConfig(config, "pets_hyd:", petList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out  
+    ! SetServices for HYD
+    if (allocated(petList)) then
+#if 1
+       print *, "HYD petList = ", petList
+#endif
+       call NUOPC_DriverAddComp(driver, "HYD", hydSS, petList=petList, comp=child, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out  
+       deallocate(petList)
+    else
+       call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out  
+    endif    
     call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -180,52 +216,53 @@ module ESM
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-
-
-!    call NUOPC_DriverAddComp(driver, srcCompLabel="LND", dstCompLabel="HYD", &
-!      compSetServicesRoutine=cplSS, comp=connector, rc=rc)
-!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!      line=__LINE__, &
-!      file=__FILE__)) &
-!      return  ! bail out
-!    call NUOPC_CompAttributeSet(connector, name="Verbosity", value="high",
-!    rc=rc)
-!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!      line=__LINE__, &
-!      file=__FILE__)) &
-!      return  ! bail out
-      
-    ! set the model clock
-    call ESMF_TimeIntervalSet(timeStep, m=15, rc=rc) ! 15 minute steps
+   
+    ! read clock set up from config
+    call getTimeFromConfig(config, "start_time:", startTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
 
-    call ESMF_TimeSet(startTime, yy=2010, mm=6, dd=1, h=0, m=0, rc=rc)
+    call getTimeFromConfig(config, "stop_time:", stopTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
 
-    call ESMF_TimeSet(stopTime, yy=2010, mm=6, dd=1, h=1, m=0, rc=rc)
+    call ESMF_ConfigGetAttribute(config, dt, label="time_step:", & 
+         default=-1, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    if (dt == -1) then
+       call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg="time_step not set in run config", &
+            line=__LINE__, &
+            file=__FILE__, &
+            rcToReturn=rc)
+       return    
+    endif
+    
+    call ESMF_TimeIntervalSet(timeStep, s=dt, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    
     internalClock = ESMF_ClockCreate(name="Application Clock", &
       timeStep=timeStep, startTime=startTime, stopTime=stopTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
     
     call ESMF_GridCompSet(driver, clock=internalClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
     
   end subroutine
 
@@ -283,5 +320,114 @@ module ESM
   end subroutine
 
   !-----------------------------------------------------------------------------
+  
+
+  subroutine getPetListFromConfig(config, label, petList, rc)
+    type(ESMF_Config), intent(inout) :: config
+    character(len=*), intent(in)  :: label
+    integer, allocatable          :: petList(:)
+    integer, intent(out)          :: rc
+
+    ! local
+    logical :: isPresent
+    integer :: i, minPet, maxPet
+
+    call ESMF_ConfigFindLabel(config, trim(label), &
+         isPresent=isPresent, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    if (isPresent) then
+       call ESMF_ConfigGetAttribute(config, minPet, default=-1, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       call ESMF_ConfigGetAttribute(config, maxPet, default=-2, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       if (minPet <= maxPet) then
+          allocate(petList(maxPet-minPet+1), stat=rc)
+          if (ESMF_LogFoundAllocError(statusToCheck=rc, &
+               msg="Could not allocate petList", &
+               line=__LINE__, &
+               file=__FILE__)) &
+               return  ! bail out
+          do i=1, maxPet-minPet+1
+             petList(i) = minPet+i-1
+          enddo
+       else
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+               msg=trim(label)//" min must be <= max", &
+               line=__LINE__, &
+               file=__FILE__, &
+               rcToReturn=rc)
+          return
+       endif
+    endif
+
+  end subroutine getPetListFromConfig
+
+  subroutine getTimeFromConfig(config, label, tm, rc)
+    type(ESMF_Config), intent(inout) :: config
+    character(len=*), intent(in)     :: label
+    type(ESMF_Time), intent(inout)   :: tm
+    integer, intent(out)             :: rc
+
+    ! local
+    logical :: isPresent
+    integer :: yy, mm, dd, h, m
+
+    call ESMF_ConfigFindLabel(config, trim(label), &
+         isPresent=isPresent, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    if (.not. isPresent) then
+       call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg=trim(label)//" is not present in run config file", &
+            line=__LINE__, &
+            file=__FILE__, &
+            rcToReturn=rc)
+       return
+    endif
+    call ESMF_ConfigGetAttribute(config, yy, default=-1, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    call ESMF_ConfigGetAttribute(config, mm, default=-1, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    call ESMF_ConfigGetAttribute(config, dd, default=-1, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    call ESMF_ConfigGetAttribute(config, h, default=-1, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+    call ESMF_ConfigGetAttribute(config, m, default=-1, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
+    call ESMF_TimeSet(tm, yy=yy, mm=mm, dd=dd, h=h, m=m, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
+  end subroutine getTimeFromConfig
+
 
 end module

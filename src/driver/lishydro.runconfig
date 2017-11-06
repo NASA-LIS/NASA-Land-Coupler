@@ -2,14 +2,14 @@
 ####  LISHydro runtime configuration      #####
 ###############################################
 
-# PET lists
-pets_lnd: 0 32
-pets_hyd: 0 32
+# PET lists - if not set, use all PETs
+#pets_lnd: 0 23
+#pets_hyd: 0 23
 
 # global clock
+time_step: 1800
 start_time: 2013 10 07 0 0 0
 stop_time:  2013 10 08 0 0 0
-
 
 # run sequence
 runSeq::
@@ -18,7 +18,6 @@ runSeq::
       HYD
     @
 ::
-
 
 # component attributes
 driverAttributes::

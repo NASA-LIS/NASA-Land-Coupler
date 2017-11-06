@@ -5,6 +5,8 @@ Coupled hydrological application with LIS and WRF-Hydro
 We are using ssh URLs for cloning submodules, so you will
 need to ensure that you have added your public SSH key from
 your platform (Discover and/or Cheyenne) to your GitHub account.
+Help is available here:
+https://help.github.com/articles/connecting-to-github-with-ssh/
 
 ## Clone Instructions
 So far, these have been tested on **NASA Discover**.

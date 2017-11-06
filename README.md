@@ -7,6 +7,7 @@ need to ensure that you have added your public SSH key from
 Discover to your GitHub account.
 
 ## Clone Instructions
+So far, these have been tested on **NASA Discover**.
 All instructions and scripts are based on tcsh, so go
 ahead and switch to it now.
 ```

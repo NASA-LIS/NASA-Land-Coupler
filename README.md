@@ -1,6 +1,11 @@
 # lishydro
 Coupled hydrological application with LIS and WRF-Hydro
 
+## SSH keys
+We are using ssh URLs for cloning submodules, so you will
+need to ensure that you have added your public SSH key from
+Discover to your GitHub account.
+
 ## Clone Instructions
 All instructions and scripts are based on tcsh, so go
 ahead and switch to it now.

@@ -1,0 +1,4 @@
+[submodule "src/wrf_hydro_nwm"]
+	path = src/wrf_hydro_nwm
+	url = git@github.com:NESII/wrf_hydro_nwm.git
+	branch = master

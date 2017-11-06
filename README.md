@@ -9,7 +9,8 @@ Help is available here:
 https://help.github.com/articles/connecting-to-github-with-ssh/
 
 ## Clone Instructions
-So far, these have been tested on **NASA Discover**.
+These have been tested on **Discover (NASA)** and 
+**Cheyenne (NCAR)**.
 All instructions and scripts are based on tcsh, so go
 ahead and switch to it now.
 ```

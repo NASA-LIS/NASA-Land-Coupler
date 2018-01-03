@@ -1,0 +1,6 @@
+module purge
+module load git/2.10.2
+module load intel/17.0.1
+module load impi/2017.1.132
+module load mkl/2017.0.1
+module list

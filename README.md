@@ -47,12 +47,12 @@ right one for your platform.
 
 **On Discover**:
 ```
-$ source modules/build.discover.intel14 
+$ source $LISHYDRO_DIR/modules/build.discover.intel14 
 ```
 
 **On Cheyenne**:
 ```
-$ source modules/build.cheyenne.intel17
+$ source $LISHYDRO_DIR/modules/build.cheyenne.intel17
 ```
 
 Build LIS

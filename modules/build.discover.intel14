@@ -1,0 +1,41 @@
+if (! $?LISHYDRO_DIR) then       
+  echo "Error: Please set LISHYDRO_DIR to root directory of cloned repository."
+  exit 1
+endif
+
+if (! -d $LISHYDRO_DIR) then
+   echo "Error:  $LISHYDRO_DIR directory does not exist."
+   exit
+endif
+
+source $LISHYDRO_DIR/modules/modules.discover.intel14
+
+# general
+setenv LISHYDRO_LIS_INST $LISHYDRO_DIR/LIS-INSTALL
+setenv LISHYDRO_WRFHYDRO_INST $LISHYDRO_DIR/WRFHydro-INSTALL
+
+# needed by LIS
+setenv LIS_SRC $LISHYDRO_DIR/LIS
+setenv LIS_ARCH linux_ifc
+setenv LIS_SPMD parallel
+setenv LIS_FC mpif90
+setenv LIS_CC mpicc
+setenv LIS_JASPER /discover/nobackup/projects/lis/libs/jasper/1.900.1_intel-14.0.3.174_sp3
+setenv LIS_GRIBAPI /discover/nobackup/projects/lis/libs/grib_api/1.12.3_intel-14.0.3.174_sp3
+setenv LIS_NETCDF /discover/nobackup/projects/lis/libs/netcdf/4.3.3.1_intel-14.0.3.174_sp3
+setenv LIS_HDF4 /discover/nobackup/projects/lis/libs/hdf4/4.2.11_intel-14.0.3.174_sp3
+setenv LIS_HDFEOS /discover/nobackup/projects/lis/libs/hdfeos2/2.19v1.00_intel-14.0.3.174_sp3
+setenv LIS_HDF5 /discover/nobackup/projects/lis/libs/hdf5/1.8.14_intel-14.0.3.174_sp3
+setenv LIS_MODESMF /discover/nobackup/rsdunlap/ESMF-INSTALLS/7.1_multidomain_intel-14.0.3/mod/modO/Linux.intel.64.intelmpi.default
+setenv LIS_LIBESMF /discover/nobackup/rsdunlap/ESMF-INSTALLS/7.1_multidomain_intel-14.0.3/lib/libO/Linux.intel.64.intelmpi.default
+setenv LIS_MINPACK 
+setenv LIS_CRTM 
+setenv LIS_CRTM_PROF
+setenv LIS_CMEM
+
+# needed by WRF-Hydro
+setenv NETCDF $LIS_NETCDF
+
+# needed by LIS and WRF-Hydro
+setenv ESMFMKFILE $LIS_LIBESMF/esmf.mk
+

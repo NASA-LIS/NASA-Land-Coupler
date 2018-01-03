@@ -47,12 +47,12 @@ right one for your platform.
 
 **On Discover**:
 ```
-$ source env.discover.intel14 
+$ source modules/build.discover.intel14 
 ```
 
 **On Cheyenne**:
 ```
-$ source env.cheyenne.intel17
+$ source modules/build.cheyenne.intel17
 ```
 
 Build LIS

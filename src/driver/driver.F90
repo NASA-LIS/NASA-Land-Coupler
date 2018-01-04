@@ -93,6 +93,7 @@ module ESM
     type(ESMF_CplComp)            :: connector
     type(ESMF_Config)             :: config	
     type(NUOPC_FreeFormat)        :: attrFF
+    logical                       :: enabledLnd, enabledHyd
     integer, allocatable          :: petList(:)
     integer                       :: dt 
     
@@ -109,7 +110,7 @@ module ESM
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call NUOPC_CompAttributeIngest(driver, attrFF, rc=rc)
+    call NUOPC_CompAttributeIngest(driver, attrFF, addFlag=.true., rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -120,110 +121,134 @@ module ESM
       file=__FILE__)) &
       return  ! bail out
     
-    ! get PET lists from config
-    call getPetListFromConfig(config, "pets_lnd:", petList, rc=rc)
+    call isComponentEnabled(config, "lnd", isEnabled=enabledLnd, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, &
+       file=__FILE__)) &
+       return  ! bail out  
+
+    if (enabledLnd) then
+#if 1
+       print *, "LND enabled"
+#endif
+
+       ! get PET lists from config
+       call getPetListFromConfig(config, "pets_lnd:", petList, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out  
+       
+       ! SetServices for LND
+       if (allocated(petList)) then
+#if 1
+          print *, "LND petList = ", petList
+#endif
+          call NUOPC_DriverAddComp(driver, "LND", lndSS, petList=petList, comp=child, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+               line=__LINE__, &
+               file=__FILE__)) &
+               return              ! bail out  
+          deallocate(petList)
+       else
+          call NUOPC_DriverAddComp(driver, "LND", lndSS, comp=child, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+               line=__LINE__, &
+               file=__FILE__)) &
+               return                ! bail out  
+       endif
+       call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       
+       ! read LND attributes from config file into FreeFormat
+       attrFF = NUOPC_FreeFormatCreate(config, label="lndAttributes::", &
+            relaxedflag=.true., rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       call NUOPC_CompAttributeIngest(child, attrFF, addFlag=.true., rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+    endif ! enabledLnd
+
+    call isComponentEnabled(config, "hyd", isEnabled=enabledHyd, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, &
          file=__FILE__)) &
          return  ! bail out  
-    
-    ! SetServices for LND
-    if (allocated(petList)) then
-#if 1
-       print *, "LND petList = ", petList
-#endif
-       call NUOPC_DriverAddComp(driver, "LND", lndSS, petList=petList, comp=child, rc=rc)
-       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, &
-            file=__FILE__)) &
-            return  ! bail out  
-       deallocate(petList)
-    else
-       call NUOPC_DriverAddComp(driver, "LND", lndSS, comp=child, rc=rc)
-       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, &
-            file=__FILE__)) &
-            return  ! bail out  
-    endif    
-    call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
 
-    ! read LND attributes from config file into FreeFormat
-    attrFF = NUOPC_FreeFormatCreate(config, label="lndAttributes::", &
-      relaxedflag=.true., rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call NUOPC_CompAttributeIngest(child, attrFF, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    
-    ! get PET lists from config
-    call getPetListFromConfig(config, "pets_hyd:", petList, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out  
-    ! SetServices for HYD
-    if (allocated(petList)) then
+    if (enabledHyd) then
 #if 1
-       print *, "HYD petList = ", petList
+       print *, "HYD enabled"
 #endif
-       call NUOPC_DriverAddComp(driver, "HYD", hydSS, petList=petList, comp=child, rc=rc)
+    
+       ! get PET lists from config
+       call getPetListFromConfig(config, "pets_hyd:", petList, rc=rc)
        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
             file=__FILE__)) &
             return  ! bail out  
-       deallocate(petList)
-    else
-       call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
+       ! SetServices for HYD
+       if (allocated(petList)) then
+#if 1
+          print *, "HYD petList = ", petList
+#endif
+          call NUOPC_DriverAddComp(driver, "HYD", hydSS, petList=petList, comp=child, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+               line=__LINE__, &
+               file=__FILE__)) &
+               return  ! bail out  
+          deallocate(petList)
+       else
+          call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+               line=__LINE__, &
+               file=__FILE__)) &
+               return  ! bail out  
+       endif
+       call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=rc)
        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
             file=__FILE__)) &
-            return  ! bail out  
-    endif    
-    call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    ! read HYD attributes from config file into FreeFormat
-    attrFF = NUOPC_FreeFormatCreate(config, label="hydAttributes::", &
-      relaxedflag=.true., rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call NUOPC_CompAttributeIngest(child, attrFF, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-   
+            return  ! bail out
+       ! read HYD attributes from config file into FreeFormat
+       attrFF = NUOPC_FreeFormatCreate(config, label="hydAttributes::", &
+            relaxedflag=.true., rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       call NUOPC_CompAttributeIngest(child, attrFF, addFlag=.true., rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       
+    endif !enabledHyd
+
     ! read clock set up from config
     call getTimeFromConfig(config, "start_time:", startTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, &
          file=__FILE__)) &
          return  ! bail out
-
+    
     call getTimeFromConfig(config, "stop_time:", stopTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, &
@@ -321,6 +346,29 @@ module ESM
 
   !-----------------------------------------------------------------------------
   
+
+  subroutine isComponentEnabled(config, label, isEnabled, rc)
+    type(ESMF_Config), intent(inout) :: config
+    character(len=*), intent(in)     :: label
+    logical, intent(out)             :: isEnabled	
+    integer, intent(out)             :: rc
+
+    ! local
+    logical :: isPresent
+    character(len=10) :: value
+
+    isEnabled = .true.
+
+    call ESMF_ConfigGetAttribute(config, value, label=label//":", &
+    	 default="yes", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    
+    isEnabled = (trim(value) == "yes")
+    	
+  end subroutine isComponentEnabled
 
   subroutine getPetListFromConfig(config, label, petList, rc)
     type(ESMF_Config), intent(inout) :: config

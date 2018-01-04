@@ -70,3 +70,9 @@ $ ./configure   # select option 3: "Linux ifort compiler dmpar"
 $ cd CPL/NUOPC_cpl
 $ make nuopcinstall INSTPATH=$LISHYDRO_DIR/WRFHydro-INSTALL
 ```
+
+Build Driver
+```
+$ cd $LISHYDRO_DIR/src/driver
+$ make
+```

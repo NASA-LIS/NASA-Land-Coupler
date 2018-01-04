@@ -2,20 +2,23 @@
 ####  LISHydro runtime configuration      #####
 ###############################################
 
+# optionally turn off a component (options are "yes" and "no")
+lnd: no
+hyd: yes
+
 # PET lists - if not set, use all PETs
 #pets_lnd: 0 23
 #pets_hyd: 0 23
 
 # global clock
-time_step: 1800
-start_time: 2013 10 07 0 0 0
-stop_time:  2013 10 08 0 0 0
+time_step: 3600
+start_time: 2013 09 12 0 0 0
+stop_time:  2013 09 12 6 0 0
 
 # run sequence
 runSeq::
-    @1800             # 30min time step 
-      LND
-      HYD
+    @3600
+        HYD
     @
 ::
 
@@ -31,4 +34,5 @@ lndAttributes::
 
 hydAttributes::
   Verbosity = high
+  forcings_directory = "FORCING"
 ::

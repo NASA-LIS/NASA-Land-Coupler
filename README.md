@@ -87,6 +87,7 @@ located in the $LISHYDRO_DIR/compset directory. Compsets
 have the naming convention:  *lishydro.runconfig.&lt;compset&gt;*.
 
 Current supported compsets:
+
 | Compset                   | Description                                                 |
 | ------------------------- | ----------------------------------------------------------- |
 | frontrange.ldas           | WRF-Hydro standalone forced by LDAS output                  |
@@ -98,7 +99,7 @@ $ cd $LISHYDRO_DIR/compset
 $ ./setuprun.csh <compset>
 ```
 This will create and populate a run directory in 
-$LISHYDRO_DIR/run/&lt;compset&gt;.
+*$LISHYDRO_DIR/run/&lt;compset&gt;*.
 
 **Submit Run**
 

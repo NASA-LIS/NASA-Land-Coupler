@@ -5,7 +5,8 @@ if ("$1" == "") then
     exit 1
 endif
 
-set LISHYDRO_RUNCONFIG="./lishydro.runconfig.$1"
+set COMPSET=$1
+set LISHYDRO_RUNCONFIG="./lishydro.runconfig.$COMPSET"
 
 if (! -f $LISHYDRO_RUNCONFIG) then
     echo "There is no compset named $1"
@@ -29,8 +30,6 @@ if (! -f $LISHYDRO_EXE) then
    exit 1
 endif
 
-set COMPSET=$1
-
 set RUNDIR=$LISHYDRO_DIR/run/$COMPSET
 if (-d $RUNDIR) then
     echo "Error: Run directory already exists: $RUNDIR"
@@ -41,22 +40,38 @@ endif
 mkdir -p $RUNDIR
 
 # WRF-Hydro setup
-set DATA_HYD=$NOBACKUP/data/WRFHydro/frontrange
-cp $DATA_HYD/namelist.hrldas $RUNDIR
-cp $DATA_HYD/hydro.namelist  $RUNDIR
-cp $DATA_HYD/CHANPARM.TBL    $RUNDIR
-cp $DATA_HYD/GENPARM.TBL     $RUNDIR
-cp $DATA_HYD/HYDRO.TBL       $RUNDIR
-cp $DATA_HYD/MPTABLE.TBL     $RUNDIR
-cp $DATA_HYD/SOILPARM.TBL    $RUNDIR
-ln -sf $DATA_HYD/DOMAIN      $RUNDIR/DOMAIN
-ln -sf $DATA_HYD/FORCING     $RUNDIR/FORCING
+set DATA_HYD=$NOBACKUP/data/WRFHydro/$COMPSET
+if (-d $DATA_HYD) then
+    cp $DATA_HYD/namelist.hrldas $RUNDIR
+    cp $DATA_HYD/hydro.namelist  $RUNDIR
+    cp $DATA_HYD/CHANPARM.TBL    $RUNDIR
+    cp $DATA_HYD/GENPARM.TBL     $RUNDIR
+    cp $DATA_HYD/HYDRO.TBL       $RUNDIR
+    cp $DATA_HYD/MPTABLE.TBL     $RUNDIR
+    cp $DATA_HYD/SOILPARM.TBL    $RUNDIR
+    ln -sf $DATA_HYD/DOMAIN      $RUNDIR/DOMAIN
+    ln -sf $DATA_HYD/FORCING     $RUNDIR/FORCING
+endif
 
 # LIS Setup
+set DATA_LND=$NOBACKUP/data/LIS/$COMPSET
+if (-d $DATA_LND) then
+    cp $DATA_LND/lis.config $RUNDIR
+    ln -s $DATA_LND/LIS_DOMAIN $RUNDIR/LIS_DOMAIN
+    ln -s $DATA_LND/LIS_INPUTS $RUNDIR/LIS_INPUTS
+    ln -s $DATA_LND/LIS_RSTRT $RUNDIR/LIS_RSTRT
+    ln -s $DATA_LND/LIS_FORCING $RUNDIR/LIS_FORCING
+    ln -s $DATA_LND/NOAH33_PARMS $RUNDIR/NOAH33_PARMS
+endif
 
 # Copy runconfig, executable and batch script
 cp $LISHYDRO_RUNCONFIG $RUNDIR/lishydro.runconfig 
 cp $LISHYDRO_EXE $RUNDIR
-cp run.csh $RUNDIR
+# TODO: Currently assumes we are running on Discover
+cp run.csh.discover $RUNDIR/run.csh
 
 echo "Run directory set up in: $RUNDIR"
+echo "To execute:"
+echo "$ cd $RUNDIR"
+echo "$ sbatch < run.csh"
+

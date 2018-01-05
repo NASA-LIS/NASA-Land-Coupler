@@ -55,7 +55,7 @@ $ source $LISHYDRO_DIR/modules/build.discover.intel14
 $ source $LISHYDRO_DIR/modules/build.cheyenne.intel17
 ```
 
-Build LIS
+**Build LIS**
 ```
 $ cd $LISHYDRO_DIR/src/LIS
 $ ./configure    # accept all the default options
@@ -63,7 +63,7 @@ $ cd runmodes/nuopc_cpl_mode
 $ make nuopcinstall INSTPATH=$LISHYDRO_DIR/LIS-INSTALL
 ```
 
-Build WRF-Hydro
+**Build WRF-Hydro**
 ```
 $ cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
 $ ./configure   # select option 3: "Linux ifort compiler dmpar"
@@ -71,8 +71,39 @@ $ cd CPL/NUOPC_cpl
 $ make nuopcinstall INSTPATH=$LISHYDRO_DIR/WRFHydro-INSTALL
 ```
 
-Build Driver
+**Build Driver**
 ```
 $ cd $LISHYDRO_DIR/src/driver
 $ make
 ```
+
+## Run Instructions
+
+**NOTE:  Runs are currently only supported on Discover.  Support for Cheyenne
+  is forthcoming.**
+
+Individual configurations are called compsets and are
+located in the $LISHYDRO_DIR/compset directory. Compsets
+have the naming convention:  *lishydro.runconfig.<compset>*.
+
+Current supported compsets are:
+- frontrange.ldas -- WRF-Hydro standalone forced by LDAS output
+- irene.nldas2    -- LIS standalone forced by NLDAS
+
+**Setup Run Directory**
+```
+$ cd $LISHYDRO_DIR/compset
+$ ./setuprun.csh <compset>
+```
+This will create and populate a run directory in 
+$LISHYDRO_DIR/run/<compset>.
+
+**Submit Run**
+
+```
+$ cd $LISHYDRO_DIR/run/<compsets>
+$ sbatch < run.csh   # only works on Discover now
+```
+This will submit the run to the batch queue.  Output
+will appear in the same directory.
+

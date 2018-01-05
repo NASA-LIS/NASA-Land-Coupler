@@ -103,6 +103,8 @@ This will create and populate a run directory in
 
 **Submit Run**
 
+The batch script *run.csh* can be modified if needed, for example
+to change the number of MPI tasks or the project number.
 ```
 $ cd $LISHYDRO_DIR/run/<compset>
 $ sbatch < run.csh   # only works on Discover now

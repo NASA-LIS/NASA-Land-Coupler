@@ -84,11 +84,13 @@ $ make
 
 Individual configurations are called compsets and are
 located in the $LISHYDRO_DIR/compset directory. Compsets
-have the naming convention:  *lishydro.runconfig.<compset>*.
+have the naming convention:  *lishydro.runconfig.&lt;compset&gt;*.
 
-Current supported compsets are:
-- frontrange.ldas -- WRF-Hydro standalone forced by LDAS output
-- irene.nldas2    -- LIS standalone forced by NLDAS
+Current supported compsets:
+| Compset                   | Description                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| frontrange.ldas           | WRF-Hydro standalone forced by LDAS output                  |
+| irene.nldas2              | LIS standalone forced by NLDAS                              |
 
 **Setup Run Directory**
 ```
@@ -96,12 +98,12 @@ $ cd $LISHYDRO_DIR/compset
 $ ./setuprun.csh <compset>
 ```
 This will create and populate a run directory in 
-$LISHYDRO_DIR/run/<compset>.
+$LISHYDRO_DIR/run/&lt;compset&gt;.
 
 **Submit Run**
 
 ```
-$ cd $LISHYDRO_DIR/run/<compsets>
+$ cd $LISHYDRO_DIR/run/<compset>
 $ sbatch < run.csh   # only works on Discover now
 ```
 This will submit the run to the batch queue.  Output

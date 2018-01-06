@@ -1,0 +1,40 @@
+###############################################
+####  LISHydro runtime configuration      #####
+###############################################
+
+# optionally turn off a component (options are "yes" and "no")
+lnd: yes
+hyd: no
+
+# PET lists - if not set, use all PETs
+#pets_lnd: 0 23
+#pets_hyd: 0 23
+
+# global clock
+time_step: 90
+start_time: 2011 08 26 0 0 0
+stop_time:  2011 08 29 0 0 0
+
+# run sequence
+runSeq::
+    @90
+        LND
+    @
+::
+
+# component attributes
+driverAttributes::
+  Verbosity = 0
+  Profiling = 0
+::
+
+lndAttributes::
+  Verbosity = high
+  debug_interval = 0
+  nest_to_nest = true
+::
+
+hydAttributes::
+  Verbosity = high
+  forcings_directory = "FORCING"
+::

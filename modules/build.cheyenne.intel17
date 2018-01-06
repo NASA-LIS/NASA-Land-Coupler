@@ -26,8 +26,8 @@ setenv LIS_NETCDF /glade/p/work/dunlap/libs/netcdf-4.4.1-intel-17.0.1
 setenv LIS_HDF4 /glade/p/work/dunlap/libs/hdf-4.2.13-intel-17.0.1
 setenv LIS_HDFEOS /glade/p/work/dunlap/libs/hdfeos2-2.19v1.00-intel-17.0.1
 setenv LIS_HDF5 /glade/p/work/dunlap/libs/hdf5-1.8.19-intel-17.0.1
-setenv LIS_MODESMF /glade/p/work/dunlap/libs/esmf-7.1.0bs38-intel-17.0.1/mod/modO/Linux.intel.64.intelmpi.default
-setenv LIS_LIBESMF /glade/p/work/dunlap/libs/esmf-7.1.0bs38-intel-17.0.1/lib/libO/Linux.intel.64.intelmpi.default
+setenv LIS_MODESMF /glade/p/work/dunlap/libs/esmf-7.1.0bs45-intel-17.0.1/mod/modO/Linux.intel.64.intelmpi.default
+setenv LIS_LIBESMF /glade/p/work/dunlap/libs/esmf-7.1.0bs45-intel-17.0.1/lib/libO/Linux.intel.64.intelmpi.default
 setenv LIS_MINPACK 
 setenv LIS_CRTM 
 setenv LIS_CRTM_PROF

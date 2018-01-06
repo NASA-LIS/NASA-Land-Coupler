@@ -37,10 +37,20 @@ if (-d $RUNDIR) then
     exit 1
 endif
 
+set HOSTNAME=`hostname`
+if ($HOSTNAME =~ *cheyenne*) then
+    set DATA_ROOT=/glade/p/work/dunlap/data
+else if ($HOSTNAME =~ *discover*) then
+    set DATA_ROOT=$NOBACKUP/data
+else
+    echo "Unsupported machine - no data directory found."
+    exit 1
+endif
+
 mkdir -p $RUNDIR
 
 # WRF-Hydro setup
-set DATA_HYD=$NOBACKUP/data/WRFHydro/$COMPSET
+set DATA_HYD=$DATA_ROOT/WRFHydro/$COMPSET
 if (-d $DATA_HYD) then
     cp $DATA_HYD/namelist.hrldas $RUNDIR
     cp $DATA_HYD/hydro.namelist  $RUNDIR
@@ -54,7 +64,7 @@ if (-d $DATA_HYD) then
 endif
 
 # LIS Setup
-set DATA_LND=$NOBACKUP/data/LIS/$COMPSET
+set DATA_LND=$DATA_ROOT/LIS/$COMPSET
 if (-d $DATA_LND) then
     cp $DATA_LND/lis.config $RUNDIR
     ln -s $DATA_LND/LIS_DOMAIN $RUNDIR/LIS_DOMAIN

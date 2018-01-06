@@ -23,6 +23,9 @@ $ git clone --recursive git@github.com:NESII/lishydro.git
 
 # this repository is also available on internal NASA GitHub
 # (must be on NASA network or have VPN access)
+# Using this repo is NOT recommended as most new development
+# occurs on the github.com repo, but this is listed here
+# for completeness, or in case an internal NASA version is needed
 $ git clone --recursive git@developer.nasa.gov:rsdunlap/lishydro.git
 ```
 
@@ -103,6 +106,8 @@ This will create and populate a run directory in
 
 **Submit Run**
 
+The batch script *run.csh* can be modified if needed, for example
+to change the number of MPI tasks or the project number.
 ```
 $ cd $LISHYDRO_DIR/run/<compset>
 $ sbatch < run.csh   # only works on Discover now

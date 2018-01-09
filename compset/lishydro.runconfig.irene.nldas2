@@ -5,6 +5,7 @@
 # optionally turn off a component (options are "yes" and "no")
 lnd: yes
 hyd: no
+med: no
 
 # PET lists - if not set, use all PETs
 #pets_lnd: 0 23

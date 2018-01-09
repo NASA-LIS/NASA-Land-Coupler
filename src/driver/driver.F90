@@ -13,7 +13,7 @@ module ESM
   
   use LIS_NUOPC, only: lndSS => SetServices
   use WRFHydro_NUOPC, only: hydSS => SetServices
-  !use MED, only: medSS => SetServices
+  use Mediator, only: medSS => SetServices
   
   use NUOPC_Connector, only: cplSS => SetServices
   
@@ -241,6 +241,14 @@ module ESM
             return  ! bail out
        
     endif !enabledHyd
+
+    ! add Mediator component
+    call NUOPC_DriverAddComp(driver, "MED", medSS, comp=child, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out  
+    
 
     ! read clock set up from config
     call getTimeFromConfig(config, "start_time:", startTime, rc=rc)

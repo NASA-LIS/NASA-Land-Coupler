@@ -34,16 +34,6 @@ Set LISHYDRO_DIR to location of cloned repository.
 $ setenv LISHYDRO_DIR /path/to/lishydro
 ```
 
-Since LIS is not yet available in git, a manual step is
-required to check out LIS from subversion.  Hopefully, LIS
-will be moved into git soon and this step will be eliminated.
-```
-$ cd $LISHYDRO_DIR/src    # go into src directory of cloned repository
-$ svn co --username=<you> https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
-```
-
-## Build Instructions
-
 Source the modules and environment variables used for the build.
 There are options here for Discover and Cheyenne. Choose the
 right one for your platform.
@@ -57,6 +47,17 @@ $ source $LISHYDRO_DIR/modules/build.discover.intel14
 ```
 $ source $LISHYDRO_DIR/modules/build.cheyenne.intel17
 ```
+Since LIS is not yet available in git, a manual step is
+required to check out LIS from subversion.  Hopefully, LIS
+will be moved into git soon and this step will be eliminated.
+**Note the default version of SVN on Discover is too old, so
+please be sure to source the file above to get the updated SVN module.**
+```
+$ cd $LISHYDRO_DIR/src    # go into src directory of cloned repository
+$ svn co --username=<you> https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
+```
+
+## Build Instructions
 
 **Build LIS**
 ```

@@ -70,7 +70,7 @@ $ make nuopcinstall INSTPATH=$LISHYDRO_DIR/LIS-INSTALL
 **Build WRF-Hydro**
 ```
 $ cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
-$ ./configure   # select option 3: "Linux ifort compiler dmpar"
+$ ./configure   # select option 3: "ifort intel parallel"
 $ cd CPL/NUOPC_cpl
 $ make nuopcinstall INSTPATH=$LISHYDRO_DIR/WRFHydro-INSTALL
 ```

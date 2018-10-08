@@ -1,5 +1,5 @@
 #!/usr/bin/csh
-set RUNCONFIG="lndhyd"
+set RUNCONFIG="lnd"
 set TASKS="24"
 set TIME="01:00:00"
 set PETLISTLND="0 23"

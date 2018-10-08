@@ -107,7 +107,7 @@ if ($RUNCONFIG =~ *hyd*) then
 endif
 
 # LIS Setup
-if ($RUNCONFIG =~ *hyd*) then
+if ($RUNCONFIG =~ *lis*) then
   set DATA_LND=$DATA_ROOT/LIS/$COMPSET
   if (-d $DATA_LND) then
     cp $DATA_LND/lis.config $RUNDIR
@@ -119,6 +119,7 @@ if ($RUNCONFIG =~ *hyd*) then
   else
     echo "ERROR: DATA_LND directory not found [$DATA_LND]"
     exit 1
+  endif
 endif
 
 # Copy executable to RUNDIR

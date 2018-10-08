@@ -1,11 +1,24 @@
 #!/usr/bin/csh
-#SBATCH -J LISHydro
-#SBATCH --nodes=1 --ntasks=24
-#SBATCH --time=01:00:00
-#SBATCH -o lishydro.%j
+#SBATCH --job-name=LISHydro
+#SBATCH --ntasks=__TASKS__
+#SBATCH --time=__TIME__
+#SBATCH --partition=compute
 #SBATCH --account=s1657
+#SBATCH --constraint=hasw
+#SBATCH --qos=serial
+#SBATCH --output=lishydro.%j
 
 setenv LISHYDRO_DIR $SLURM_SUBMIT_DIR/../..
 source $LISHYDRO_DIR/modules/modules.discover.intel14
 
-mpirun -np 24 ./LISHydroApp >& log
+# set umask
+umask 022
+# set limits
+limit cputime      unlimited
+limit filesize     unlimited
+limit datasize     unlimited
+limit stacksize    unlimited
+limit coredumpsize unlimited
+limit memoryuse    unlimited
+
+mpirun -np __TASKS__ ./LISHydroApp >& log

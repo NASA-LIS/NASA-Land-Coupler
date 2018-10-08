@@ -1,0 +1,57 @@
+###############################################
+####  LISHydro runtime configuration      #####
+###############################################
+
+# optionally turn off a component (options are "yes" and "no")
+lnd: yes
+hyd: yes
+med: yes
+
+# PET lists - if not set, use all PETs
+pets_lnd: __PETLISTLND__
+pets_hyd: __PETLISTHYD__
+pets_med: __PETLISTMED__
+
+# global clock
+time_step:  __TIMESTEP__
+start_time: __STARTTIME__
+stop_time:  __STOPTIME__
+
+# run sequence
+runSeq::
+    @__TIMESTEP__
+        LND
+        LND -> MED :remapMethod=__REMAP__
+        MED
+#        MED prep_hyd
+        MED -> HYD :remapMethod=__REMAP__
+        HYD
+        HYD -> MED :remapMethod=__REMAP__
+#        MED prep_lnd
+        MED -> LND :remapMethod=__REMAP__
+    @
+    @
+::
+
+# component attributes
+driverAttributes::
+  Verbosity = high
+  Profiling = 0
+::
+
+lndAttributes::
+  Verbosity = high
+  Profiling = 0
+  debug_interval = 0
+  nest_to_nest = false
+  write_grid = true
+::
+
+hydAttributes::
+  Verbosity = high
+  Profiling = 0
+  forcings_directory = "WRFHYDRO_FORCING"
+  debug_interval = 0
+  nest_to_nest = false
+  write_grid = true
+::

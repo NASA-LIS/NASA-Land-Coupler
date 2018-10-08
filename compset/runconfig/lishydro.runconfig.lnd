@@ -8,34 +8,41 @@ hyd: no
 med: no
 
 # PET lists - if not set, use all PETs
-#pets_lnd: 0 23
-#pets_hyd: 0 23
+pets_lnd: __PETLISTLND__
+#pets_hyd:
+#pets_med:
 
 # global clock
-time_step: 90
-start_time: 2011 08 26 0 0 0
-stop_time:  2011 08 29 0 0 0
+time_step:  __TIMESTEP__
+start_time: __STARTTIME__
+stop_time:  __STOPTIME__
 
 # run sequence
 runSeq::
-    @90
+    @__TIMESTEP__
         LND
     @
 ::
 
 # component attributes
 driverAttributes::
-  Verbosity = 0
+  Verbosity = high
   Profiling = 0
 ::
 
 lndAttributes::
   Verbosity = high
+  Profiling = 0
   debug_interval = 0
-  nest_to_nest = true
+  nest_to_nest = false
+  write_grid = true
 ::
 
-hydAttributes::
-  Verbosity = high
-  forcings_directory = "FORCING"
-::
+#hydAttributes::
+#  Verbosity = high
+#  Profiling = 0
+#  forcings_directory = "WRFHYDRO_FORCING"
+#  debug_interval = 0
+#  nest_to_nest = false
+#  write_grid = true
+#::

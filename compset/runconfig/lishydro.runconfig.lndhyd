@@ -3,36 +3,48 @@
 ###############################################
 
 # optionally turn off a component (options are "yes" and "no")
-lnd: no
+lnd: yes
 hyd: yes
+med: no
 
 # PET lists - if not set, use all PETs
-#pets_lnd: 0 23
-#pets_hyd: 0 23
+pets_lnd: __PETLISTLND__
+pets_hyd: __PETLISTHYD__
+#pets_med:
 
 # global clock
-time_step: 3600
-start_time: 2013 09 12 0 0 0
-stop_time:  2013 09 12 6 0 0
+time_step:  __TIMESTEP__
+start_time: __STARTTIME__
+stop_time:  __STOPTIME__
 
 # run sequence
 runSeq::
-    @3600
+    @__TIMESTEP__
+        LND
+        LND -> HYD :remapMethod=__REMAP__
         HYD
     @
 ::
 
 # component attributes
 driverAttributes::
-  Verbosity = 0
+  Verbosity = high
   Profiling = 0
 ::
 
 lndAttributes::
   Verbosity = high
+  Profiling = 0
+  debug_interval = 0
+  nest_to_nest = false
+  write_grid = true
 ::
 
 hydAttributes::
   Verbosity = high
-  forcings_directory = "FORCING"
+  Profiling = 0
+  forcings_directory = "WRFHYDRO_FORCING"
+  debug_interval = 0
+  nest_to_nest = false
+  write_grid = true
 ::

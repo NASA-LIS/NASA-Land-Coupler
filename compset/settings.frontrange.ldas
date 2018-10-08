@@ -1,0 +1,10 @@
+#!/usr/bin/csh
+set RUNCONFIG="hyd"
+set TASKS="24"
+set TIME="01:00:00"
+set PETLISTHYD="0 23"
+set TIMESTEP="3600"
+set STARTTIME="2013 09 12 0 0 0"
+set STOPTIME="2013 09 12 6 0 0"
+set REMAP="redist"
+

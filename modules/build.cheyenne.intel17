@@ -38,4 +38,5 @@ setenv NETCDF $LIS_NETCDF
 
 # needed by LIS and WRF-Hydro
 setenv ESMFMKFILE $LIS_LIBESMF/esmf.mk
+setenv WRF_HYDRO 1
 

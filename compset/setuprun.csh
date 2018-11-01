@@ -107,7 +107,7 @@ if ($RUNCONFIG =~ *hyd*) then
 endif
 
 # LIS Setup
-if ($RUNCONFIG =~ *lis*) then
+if ($RUNCONFIG =~ *lnd*) then
   set DATA_LND=$DATA_ROOT/LIS/$COMPSET
   if (-d $DATA_LND) then
     cp $DATA_LND/lis.config $RUNDIR

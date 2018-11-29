@@ -1,6 +1,14 @@
 module purge
-module load git/2.10.2
+module load ncarenv/1.2
 module load intel/17.0.1
-module load impi/2017.1.132
-module load mkl/2017.0.1
+module load ncarcompilers/0.4.1
+module load mpt/2.15f
+module use -a /glade/p/ral/hap/drosen/projects/LISHydro/modulefiles/intel/17.0.1
+module load hdf5-lishydro/1.8.14
+module load netcdf-lishydro/4.3.3.1
+module load jasper-lishydro/1.900.1
+module load grib-api-lishydro/1.12.3
+module load esmf-lishydro/7.1.0
+module load hdf-lishydro/4.2.11
+module load hdfeos-lishydro/2.19v1.00
 module list

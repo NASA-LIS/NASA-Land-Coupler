@@ -3,6 +3,21 @@
 # Reset error flag
 set ERROR=0
 
+# Set System Specific Values
+if ($HOSTNAME =~ *cheyenne*) then
+    set DATA_ROOT="/glade/p/ral/hap/drosen/projects/LISHydro/data"
+    set BATCH_SYS="qsub"
+    set CPPERNODE=36
+else if ($HOSTNAME =~ *discover*) then
+    set DATA_ROOT="/discover/nobackup/projects/nu-wrf/lishydro/data"
+    set BATCH_SYS="sbatch"
+    set CPPERNODE=28
+else
+    echo "ERROR: Unsupported machine - no data directory found."
+    exit 1
+endif
+
+# Generate Compset List
 set COMPSET_FILES=`find . -maxdepth 1 -name 'settings.*'`
 set COMPSET_LIST=`echo $COMPSET_FILES | sed "s/\.\/settings\./ /g"`
 if ($#argv != 1) then
@@ -30,6 +45,19 @@ source $COMPSET_SETTINGS >& /dev/null
 if ($status != 0) then
    echo "ERROR: Compset settings file must be C Shell compatible [$COMPSET_SETTINGS]"
    exit 1
+endif
+
+# Calculate Nodes Needed
+if ( ! $?TASKS ) then
+   echo " ERROR: TASKS must be set in $COMPSET_SETTINGS"
+   exit 1
+else
+    set REMAINDER=`expr $TASKS % $CPPERNODE`
+    if ($REMAINDER > 0) then
+        set NODES=`expr $TASKS / $CPPERNODE + 1`
+    else
+        set NODES=`expr $TASKS / $CPPERNODE`
+    endif
 endif
 
 # Check RUNCONFIG variable then set LISHYDRO_RUNCONFIG template file
@@ -79,16 +107,6 @@ if (-d $RUNDIR) then
 endif
 mkdir -p $RUNDIR
 
-# SET DATA_ROOT based on HOSTNAME
-if ($HOSTNAME =~ *cheyenne*) then
-    set DATA_ROOT=/glade/p/work/dunlap/data
-else if ($HOSTNAME =~ *discover*) then
-    set DATA_ROOT=/discover/nobackup/projects/nu-wrf/lishydro/data
-else
-    echo "ERROR: Unsupported machine - no data directory found."
-    exit 1
-endif
-
 # WRF-Hydro setup
 if ($RUNCONFIG =~ *hyd*) then
   set DATA_HYD=$DATA_ROOT/WRFHydro/$COMPSET
@@ -132,7 +150,7 @@ foreach setting (${settings})
     set envvar=${setting:as/__//}
     set value=`eval echo \$$envvar >& /dev/null`
     if ($status != 0) then
-      echo " ERROR: "$envvar" must be set in settings.$COMPSET"
+      echo " ERROR: "$envvar" must be set in $COMPSET_SETTINGS"
       set ERROR=1
       continue
     else
@@ -152,7 +170,7 @@ foreach setting (${settings})
     set envvar=${setting:as/__//}
     set value=`eval echo \$$envvar >& /dev/null`
     if ($status != 0) then
-      echo " ERROR: "$envvar" must be set in settings.$COMPSET"
+      echo " ERROR: "$envvar" must be set in $COMPSET_SETTINGS"
       set ERROR=1
       continue
     else
@@ -168,5 +186,5 @@ endif
 echo "Run directory set up in: $RUNDIR"
 echo "To execute:"
 echo "$ cd $RUNDIR"
-echo "$ sbatch run.csh"
+echo "$ $BATCH_SYS run.csh"
 

@@ -1,0 +1,23 @@
+#!/usr/bin/csh
+#PBS -N LISHydro
+#PBS -A P48500028
+#PBS -l walltime=__TIME__
+#PBS -q regular
+#PBS -j oe
+#PBS -o $PBS_JOBID.log
+#PBS -l select=__NODES__:ncpus=36:mpiprocs=36
+
+setenv LISHYDRO_DIR $PBS_O_WORKDIR/../..
+source $LISHYDRO_DIR/modules/modules.cheyenne.intel17
+
+# set umask
+umask 022
+# set limits
+limit cputime      unlimited
+limit filesize     unlimited
+limit datasize     unlimited
+limit stacksize    unlimited
+limit coredumpsize unlimited
+limit memoryuse    unlimited
+
+mpirun -np __TASKS__ ./LISHydroApp >& lishydro.log

@@ -23,6 +23,7 @@ runSeq::
         LND
         LND -> HYD :remapMethod=__REMAP__
         HYD
+        HYD -> LND :remapMethod=__REMAP__
     @
 ::
 

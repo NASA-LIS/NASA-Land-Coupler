@@ -3,23 +3,33 @@
 # Reset error flag
 set ERROR=0
 
+# Script Configuration
+set DIR_CWD=`pwd`
+set DIR_SETNGS="runsettings"
+set DIR_RUNCFG="runconfig"
+set DIR_RUNSCP="runscripts"
+
 # Set System Specific Values
 if ($HOSTNAME =~ *cheyenne*) then
     set DATA_ROOT="/glade/p/ral/hap/drosen/projects/LISHydro/data"
     set BATCH_SYS="qsub"
     set CPPERNODE=36
+    set COMP_VERS="intel17"
+    set SYST_NAME="cheyenne"
 else if ($HOSTNAME =~ *discover*) then
     set DATA_ROOT="/discover/nobackup/projects/nu-wrf/lishydro/data"
     set BATCH_SYS="sbatch"
     set CPPERNODE=28
+    set COMP_VERS="intel14"
+    set SYST_NAME="discover"
 else
     echo "ERROR: Unsupported machine - no data directory found."
     exit 1
 endif
 
 # Generate Compset List
-set COMPSET_FILES=`find . -maxdepth 1 -name 'settings.*'`
-set COMPSET_LIST=`echo $COMPSET_FILES | sed "s/\.\/settings\./ /g"`
+set COMPSET_FILES=`find $DIR_SETNGS -maxdepth 1 -type f -name '*' | sort`
+set COMPSET_LIST=`echo $COMPSET_FILES | sed "s/$DIR_SETNGS\///g"`
 if ($#argv != 1) then
     echo "Usage $0 <compset>"
     echo "Available compsets:"
@@ -32,7 +42,7 @@ else
 endif
 
 # Include compset settings
-set COMPSET_SETTINGS="./settings.$COMPSET"
+set COMPSET_SETTINGS="./$DIR_SETNGS/$COMPSET"
 if (! -f $COMPSET_SETTINGS) then
     echo "ERROR: Compset settings file is missing [$COMPSET_SETTINGS]"
     echo "Available compsets:"
@@ -49,7 +59,7 @@ endif
 
 # Calculate Nodes Needed
 if ( ! $?TASKS ) then
-   echo " ERROR: TASKS must be set in $COMPSET_SETTINGS"
+   echo "ERROR: TASKS must be set in $COMPSET_SETTINGS"
    exit 1
 else
     set REMAINDER=`expr $TASKS % $CPPERNODE`
@@ -69,7 +79,7 @@ if ("$RUNCONFIG" == "")  then
   echo "ERROR: RUNCONFIG variable is blank. Check [$COMPSET_SETTINGS]"
   exit 1
 endif
-set LISHYDRO_RUNCONFIG="./runconfig/lishydro.runconfig.$RUNCONFIG"
+set LISHYDRO_RUNCONFIG="./$DIR_RUNCFG/lishydro.runconfig.$RUNCONFIG"
 if (! -f $LISHYDRO_RUNCONFIG) then
     echo "ERROR: LISHYDRO_RUNCONFIG file is missing [$LISHYDRO_RUNCONFIG]"
     exit 1
@@ -77,20 +87,32 @@ endif
 
 # Set LISHYDRO_RUNSCRIPT template file
 set HOSTNAME=`hostname | sed 's/[0-9]*$//g'`
-set LISHYDRO_RUNSCRIPT="./run.csh.$HOSTNAME"
+set LISHYDRO_RUNSCRIPT="./$DIR_RUNSCP/run.csh.$HOSTNAME"
 if (! -f $LISHYDRO_RUNSCRIPT) then
     echo "ERROR: LISHYDRO_RUNSCRIPT file is missing [$LISHYDRO_RUNSCRIPT]"
     exit 1
 endif
 
 # Check LISHYDRO_DIR and set LISHYDRO_EXE
-if (! $?LISHYDRO_DIR) then       
-  echo "ERROR: Please set LISHYDRO_DIR to root directory of cloned repository."
-  exit 1
+if (! $?LISHYDRO_DIR) then
+  setenv LISHYDRO_DIR `dirname $DIR_CWD`
+  echo "INFO : LISHYDRO_DIR automatically set [$LISHYDRO_DIR]"
 endif
 if (! -d $LISHYDRO_DIR) then
    echo "ERROR: LISHYDRO_DIR directory does not exist [$LISHYDRO_DIR]"
    exit 1
+endif
+set MODL_FILE=$LISHYDRO_DIR/modules/build.$SYST_NAME.$COMP_VERS
+if (! -f $MODL_FILE) then
+   echo "ERROR: Environment settings file does not exist [$MODL_FILE]"
+   exit 1
+else
+  echo "INFO : Environment automatically set [$MODL_FILE]"
+  source $MODL_FILE >& /dev/null
+  if ($status != 0) then
+    echo "ERROR: Environment settings file error [$MODL_FILE]"
+    exit 1
+  endif
 endif
 set LISHYDRO_EXE=$LISHYDRO_DIR/src/driver/LISHydroApp
 if (! -f $LISHYDRO_EXE) then
@@ -150,7 +172,7 @@ foreach setting (${settings})
     set envvar=${setting:as/__//}
     set value=`eval echo \$$envvar >& /dev/null`
     if ($status != 0) then
-      echo " ERROR: "$envvar" must be set in $COMPSET_SETTINGS"
+      echo "ERROR: "$envvar" must be set in $COMPSET_SETTINGS"
       set ERROR=1
       continue
     else
@@ -159,7 +181,7 @@ foreach setting (${settings})
     endif
 end
 if ($ERROR != 0) then
-  echo "# Error processing $LISHYDRO_RUNCONFIG #"
+  echo "ERROR: Processing failed [$LISHYDRO_RUNCONFIG]"
   exit $ERROR
 endif
 
@@ -170,7 +192,7 @@ foreach setting (${settings})
     set envvar=${setting:as/__//}
     set value=`eval echo \$$envvar >& /dev/null`
     if ($status != 0) then
-      echo " ERROR: "$envvar" must be set in $COMPSET_SETTINGS"
+      echo "ERROR: "$envvar" must be set in $COMPSET_SETTINGS"
       set ERROR=1
       continue
     else
@@ -179,7 +201,7 @@ foreach setting (${settings})
     endif
 end
 if ($ERROR != 0) then
-  echo "# Error processing $LISHYDRO_RUNSCRIPT #"
+  echo "ERROR: Processing failed [$LISHYDRO_RUNSCRIPT]"
   exit $ERROR
 endif
 

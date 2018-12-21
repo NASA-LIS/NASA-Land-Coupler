@@ -1,0 +1,11 @@
+#!/usr/bin/csh
+set RUNCONFIG="lndhydmed"
+set TASKS="512"
+set TIME="02:00:00"
+set PETLISTLND="0 511"
+set PETLISTHYD="0 511"
+set PETLISTMED="0 511"
+set TIMESTEP="90"
+set STARTTIME="2015 10 01 0 0 0"
+set STOPTIME="2015 11 01 0 0 0"
+set REMAP="redist"

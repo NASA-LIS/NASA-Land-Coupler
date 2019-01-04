@@ -20,21 +20,24 @@ stop_time:  __STOPTIME__
 # run sequence
 runSeq::
     @__TIMESTEP__
-        LND
         LND -> MED :remapMethod=__REMAP__
-        MED
-#        MED prep_hyd
-        MED -> HYD :remapMethod=__REMAP__
-        HYD
         HYD -> MED :remapMethod=__REMAP__
-#        MED prep_lnd
+        MED
+        MED -> HYD :remapMethod=__REMAP__
         MED -> LND :remapMethod=__REMAP__
+        LND
+        HYD
     @
     @
 ::
 
 # component attributes
 driverAttributes::
+  Verbosity = high
+  Profiling = 0
+::
+
+medAttributes::
   Verbosity = high
   Profiling = 0
 ::

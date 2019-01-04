@@ -1,0 +1,32 @@
+ ! FERRET v6.96 Script
+ ! >ferret -gif -script FERRET_HYDRO_CHRTOUT.jnl [CHRTOUT file] [prefix]
+ ! Author: Daniel Rosen
+ ! Organization: NESII/CIRES/NOAA
+ ! Email: daniel.rosen@noaa.gov
+ ! Date: 2019-01-03
+
+CANCEL MODE LOGO
+
+SAY *** Generating HYDRO_CHRTOUT plots ***
+SAY
+
+DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL prefix $2
+
+USE $1
+
+! Load dataset 1 and compute output file label
+DEFINE SYMBOL dtebeg `1`
+DEFINE SYMBOL dteend `STRINDEX("($dsetnm)",".")`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
+DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
+DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
+
+SAY *** Generating STREAMFLOW plot ***
+ plot STREAMFLOW
+ frame/file="($prefix)_CHRTOUT_($tstmp)_STREAMFLOW.gif"
+SAY *** Generating HEAD plot ***
+ plot HEAD
+ frame/file="($prefix)_CHRTOUT_($tstmp)_HEAD.gif"
+
+exit

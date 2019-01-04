@@ -1,0 +1,96 @@
+ ! FERRET v6.96 Script
+ ! >ferret -gif -script FERRET_LIS_RST_NOAH33_IGNORE0.jnl [LIS_RST file] [prefix]
+ ! Author: Daniel Rosen
+ ! Organization: NESII/CIRES/NOAA
+ ! Email: daniel.rosen@noaa.gov
+ ! Date: 2019-01-03
+
+CANCEL MODE LOGO
+
+SAY *** Generating LIS_RST_NOAH33 IGNORE0 plots ***
+SAY
+
+DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL prefix $2
+
+USE $1 
+ 
+! Load dataset 1 and compute output file label
+DEFINE SYMBOL dtebeg `STRRINDEX("($dsetnm)","_")+1`
+DEFINE SYMBOL dteend `STRINDEX("($dsetnm)",".")`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
+DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
+DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
+
+SAY *** Generating ALBEDO plot ***
+ plot ignore0(ALBEDO)
+ frame/file="($prefix)_LISRST_($tstmp)_ALBEDO.gif"
+SAY *** Generating CH plot ***
+ plot ignore0(CH)
+ frame/file="($prefix)_LISRST_($tstmp)_CH.gif"
+SAY *** Generating CM plot ***
+ plot ignore0(CM)
+ frame/file="($prefix)_LISRST_($tstmp)_CM.gif"
+SAY *** Generating CMC plot ***
+ plot ignore0(CMC)
+ frame/file="($prefix)_LISRST_($tstmp)_CMC.gif"
+SAY *** Generating EMISS plot ***
+ plot ignore0(EMISS)
+ frame/file="($prefix)_LISRST_($tstmp)_EMISS.gif"
+SAY *** Generating Q1 plot ***
+ plot ignore0(Q1)
+ frame/file="($prefix)_LISRST_($tstmp)_Q1.gif"
+SAY *** Generating SH2O L1 plot ***
+ plot/j=1 ignore0(SH2O)
+ frame/file="($prefix)_LISRST_($tstmp)_SH2O1.gif"
+SAY *** Generating SH2O L2 plot ***
+ plot/j=2 ignore0(SH2O)
+ frame/file="($prefix)_LISRST_($tstmp)_SH2O2.gif"
+SAY *** Generating SH2O L3 plot ***
+ plot/j=3 ignore0(SH2O)
+ frame/file="($prefix)_LISRST_($tstmp)_SH2O3.gif"
+SAY *** Generating SH2O L4 plot ***
+ plot/j=4 ignore0(SH2O)
+ frame/file="($prefix)_LISRST_($tstmp)_SH2O4.gif"
+SAY *** Generating SMC L1 plot ***
+ plot/j=1 ignore0(SMC)
+ frame/file="($prefix)_LISRST_($tstmp)_SMC1.gif"
+SAY *** Generating SMC L2 plot ***
+ plot/j=2 ignore0(SMC)
+ frame/file="($prefix)_LISRST_($tstmp)_SMC2.gif"
+SAY *** Generating SMC L3 plot ***
+ plot/j=3 ignore0(SMC)
+ frame/file="($prefix)_LISRST_($tstmp)_SMC3.gif"
+SAY *** Generating SMC L4 plot ***
+ plot/j=4 ignore0(SMC)
+ frame/file="($prefix)_LISRST_($tstmp)_SMC4.gif"
+SAY *** Generating SNEQV plot ***
+ plot ignore0(SNEQV)
+ frame/file="($prefix)_LISRST_($tstmp)_SNEQV.gif"
+SAY *** Generating SNOTIME1 plot ***
+ plot ignore0(SNOTIME1)
+ frame/file="($prefix)_LISRST_($tstmp)_SNOTIME1.gif"
+SAY *** Generating SNOWH plot ***
+ plot ignore0(SNOWH)
+ frame/file="($prefix)_LISRST_($tstmp)_SNOWH.gif"
+SAY *** Generating STC L1 plot ***
+ plot/j=1 ignore0(STC)
+ frame/file="($prefix)_LISRST_($tstmp)_STC1.gif"
+SAY *** Generating STC L2 plot ***
+ plot/j=2 ignore0(STC)
+ frame/file="($prefix)_LISRST_($tstmp)_STC2.gif"
+SAY *** Generating STC L3 plot ***
+ plot/j=3 ignore0(STC)
+ frame/file="($prefix)_LISRST_($tstmp)_STC3.gif"
+SAY *** Generating STC L4 plot ***
+ plot/j=4 ignore0(STC)
+ frame/file="($prefix)_LISRST_($tstmp)_STC4.gif"
+SAY *** Generating T1 plot ***
+ plot ignore0(T1)
+ frame/file="($prefix)_LISRST_($tstmp)_T1.gif"
+SAY *** Generating Z0 plot ***
+ plot ignore0(Z0)
+ frame/file="($prefix)_LISRST_($tstmp)_Z0.gif"
+
+exit
+

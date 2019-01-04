@@ -1,0 +1,114 @@
+ ! NOAA/PMEL TMAP
+ ! FERRET v7 (optimized)
+ ! >ferret -gif -script FERRET_HYDRO_RST_IGNORE0.jnl [HYDRO_RST file] [prefix]
+ ! Author: Daniel Rosen
+ ! Organization: NESII/CIRES/NOAA
+ ! Email: daniel.rosen@noaa.gov
+ ! Date: 2019-01-03
+
+CANCEL MODE LOGO
+
+SAY *** Generating HYDRO_RST IGNORE0 plots ***
+SAY 
+
+DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL prefix $2
+
+USE $1
+
+! Load dataset 1 and compute output file label
+DEFINE SYMBOL dtebeg `STRRINDEX("($dsetnm)",".")+1`
+DEFINE SYMBOL dteend `STRRINDEX("($dsetnm)","_")`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
+DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
+DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
+
+SAY *** Generating QBDRYRT plot ***
+ shade ignore0(QBDRYRT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_QBDRYRT.gif"
+SAY *** Generating CVOL plot ***
+ plot  ignore0(CVOL)
+ frame/file="($prefix)_HYDRORST_($tstmp)_CVOL.gif"
+SAY *** Generating HLINK plot ***
+ plot  ignore0(HLINK)
+ frame/file="($prefix)_HYDRORST_($tstmp)_HLINK.gif"
+SAY *** Generating INFXSRT plot ***
+ shade ignore0(INFXSRT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_INFXSRT.gif"
+SAY *** Generating INFXSWGT plot ***
+ shade ignore0(INFXSWGT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_INFXSWGT.gif"
+SAY *** Generating LAKE_INFLORT plot ***
+ shade ignore0(LAKE_INFLORT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_LAKEINFLORT.gif"
+SAY *** Generating QLINK1 plot ***
+ plot  ignore0(QLINK1)
+ frame/file="($prefix)_HYDRORST_($tstmp)_QLINK1.gif"
+SAY *** Generating QLINK2 plot ***
+ plot  ignore0(QLINK2)
+ frame/file="($prefix)_HYDRORST_($tstmp)_QLINK2.gif"
+SAY *** Generating QSTRMVOLRT plot ***
+ shade ignore0(QSTRMVOLRT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_QSTRMVOLRT.gif"
+SAY *** Generating SFCHEADRT plot ***
+ shade ignore0(SFCHEADRT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SFCHEADRT.gif"
+SAY *** Generating SFCHEADSUBRT plot ***
+ shade ignore0(SFCHEADSUBRT)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SFCHEADSUBRT.gif"
+SAY *** Generating SH2OWGT1 plot ***
+ shade ignore0(SH2OWGT1)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OWGT1.gif"
+SAY *** Generating SH2OWGT2 plot ***
+ shade ignore0(SH2OWGT2)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OWGT2.gif"
+SAY *** Generating SH2OWGT3 plot ***
+ shade ignore0(SH2OWGT3)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OWGT3.gif"
+SAY *** Generating SH2OWGT4 plot ***
+ shade ignore0(SH2OWGT4)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OWGT4.gif"
+SAY *** Generating SH2OX1 plot ***
+ shade ignore0(SH2OX1)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OX1.gif"
+SAY *** Generating SH2OX2 plot ***
+ shade ignore0(SH2OX2)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OX2.gif"
+SAY *** Generating SH2OX3 plot ***
+ shade ignore0(SH2OX3)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OX3.gif"
+SAY *** Generating SH2OX4 plot ***
+ shade ignore0(SH2OX4)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SH2OX4.gif"
+SAY *** Generating SMC1 plot ***
+ shade ignore0(SMC1)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SMC1.gif"
+SAY *** Generating SMC2 plot ***
+ shade ignore0(SMC2)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SMC2.gif"
+SAY *** Generating SMC3 plot ***
+ shade ignore0(SMC3)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SMC3.gif"
+SAY *** Generating SMC4 plot ***
+ shade ignore0(SMC4)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SMC4.gif"
+SAY *** Generating SOLDRAIN plot ***
+ shade ignore0(SOLDRAIN)
+ frame/file="($prefix)_HYDRORST_($tstmp)_SOLDRAIN.gif"
+SAY *** Generating STC1 plot ***
+ shade ignore0(STC1)
+ frame/file="($prefix)_HYDRORST_($tstmp)_STC1.gif"
+SAY *** Generating STC2 plot ***
+ shade ignore0(STC2)
+ frame/file="($prefix)_HYDRORST_($tstmp)_STC2.gif"
+SAY *** Generating STC3 plot ***
+ shade ignore0(STC3)
+ frame/file="($prefix)_HYDRORST_($tstmp)_STC3.gif"
+SAY *** Generating STC4 plot ***
+ shade ignore0(STC4)
+ frame/file="($prefix)_HYDRORST_($tstmp)_STC4.gif"
+SAY *** Generating Z_GWSUBBAS plot ***
+ plot  ignore0(Z_GWSUBBAS)
+ frame/file="($prefix)_HYDRORST_($tstmp)_ZGWSUBBAS.gif"
+
+exit

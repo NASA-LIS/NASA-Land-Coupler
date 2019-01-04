@@ -1,0 +1,183 @@
+ ! FERRET v6.96 Script
+ ! >ferret -gif -script FERRET_LIS_HIST.jnl [LIS_HIST file] [prefix]
+ ! Author: Daniel Rosen
+ ! Organization: NESII/CIRES/NOAA
+ ! Email: daniel.rosen@noaa.gov
+ ! Date: 2019-01-03
+
+CANCEL MODE LOGO
+
+SAY *** Generating LIS_HIST plots ***
+SAY
+
+DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL prefix $2
+
+USE $1
+
+! Load dataset 1 and compute output file label
+DEFINE SYMBOL dtebeg `STRRINDEX("($dsetnm)","_")+1`
+DEFINE SYMBOL dteend `STRINDEX("($dsetnm)",".")`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
+DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
+DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
+
+SAY *** Generating QLE_TAVG plot ***
+ shade QLE_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_QLE_TAVG.gif"
+SAY *** Generating QLE_INST plot ***
+ shade QLE_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_QLE_INST.gif"
+SAY *** Generating QH_TAVG plot ***
+ shade QH_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_QH_TAVG.gif"
+SAY *** Generating QH_INST plot ***
+ shade QH_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_QH_INST.gif"
+SAY *** Generating QG_TAVG plot ***
+ shade QG_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_QG_TAVG.gif"
+SAY *** Generating QG_INST plot ***
+ shade QG_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_QG_INST.gif"
+SAY *** Generating QS_TAVG plot ***
+ shade QS_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_QS_TAVG.gif"
+SAY *** Generating QS_INST plot ***
+ shade QS_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_QS_INST.gif"
+SAY *** Generating QSB_TAVG plot ***
+ shade QSB_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_QSB_TAVG.gif"
+SAY *** Generating QSB_INST plot ***
+ shade QSB_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_QSB_INST.gif"
+SAY *** Generating SOILMOIST_TAVG L1 plot ***
+ shade/k=1 SOILMOIST_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST1_TAVG.gif"
+SAY *** Generating SOILMOIST_TAVG L2 plot ***
+ shade/k=2 SOILMOIST_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST2_TAVG.gif"
+SAY *** Generating SOILMOIST_TAVG L3 plot ***
+ shade/k=3 SOILMOIST_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST3_TAVG.gif"
+SAY *** Generating SOILMOIST_TAVG L4 plot ***
+ shade/k=4 SOILMOIST_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST4_TAVG.gif"
+SAY *** Generating SOILMOIST_INST L1 plot ***
+ shade/k=1 SOILMOIST_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST1_INST.gif"
+SAY *** Generating SOILMOIST_INST L2 plot ***
+ shade/k=2 SOILMOIST_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST2_INST.gif"
+SAY *** Generating SOILMOIST_INST L3 plot ***
+ shade/k=3 SOILMOIST_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST3_INST.gif"
+SAY *** Generating SOILMOIST_INST L4 plot ***
+ shade/k=4 SOILMOIST_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILMOIST4_INST.gif"
+SAY *** Generating SOILTEMP_TAVG L1 plot ***
+ shade/k=1 SOILTEMP_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP1_TAVG.gif"
+SAY *** Generating SOILTEMP_TAVG L2 plot ***
+ shade/k=2 SOILTEMP_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP2_TAVG.gif"
+SAY *** Generating SOILTEMP_TAVG L3 plot ***
+ shade/k=3 SOILTEMP_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP3_TAVG.gif"
+SAY *** Generating SOILTEMP_TAVG L4 plot ***
+ shade/k=4 SOILTEMP_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP4_TAVG.gif"
+SAY *** Generating SOILTEMP_INST L1 plot ***
+ shade/k=1 SOILTEMP_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP1_INST.gif"
+SAY *** Generating SOILTEMP_INST L2 plot ***
+ shade/k=2 SOILTEMP_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP2_INST.gif"
+SAY *** Generating SOILTEMP_INST L3 plot ***
+ shade/k=3 SOILTEMP_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP3_INST.gif"
+SAY *** Generating SOILTEMP_INST L4 plot ***
+ shade/k=4 SOILTEMP_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SOILTEMP4_INST.gif"
+SAY *** Generating SMLIQFRAC_TAVG L1 plot ***
+ shade/k=1 SMLIQFRAC_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC1_TAVG.gif"
+SAY *** Generating SMLIQFRAC_TAVG L2 plot ***
+ shade/k=2 SMLIQFRAC_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC2_TAVG.gif"
+SAY *** Generating SMLIQFRAC_TAVG L3 plot ***
+ shade/k=3 SMLIQFRAC_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC3_TAVG.gif"
+SAY *** Generating SMLIQFRAC_TAVG L4 plot ***
+ shade/k=4 SMLIQFRAC_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC4_TAVG.gif"
+SAY *** Generating SMLIQFRAC_INST L1 plot ***
+ shade/k=1 SMLIQFRAC_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC1_INST.gif"
+SAY *** Generating SMLIQFRAC_INST L2 plot ***
+ shade/k=2 SMLIQFRAC_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC2_INST.gif"
+SAY *** Generating SMLIQFRAC_INST L3 plot ***
+ shade/k=3 SMLIQFRAC_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC3_INST.gif"
+SAY *** Generating SMLIQFRAC_INST L4 plot ***
+ shade/k=4 SMLIQFRAC_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SMLIQFRAC4_INST.gif"
+SAY *** Generating RAINF_F_TAVG plot ***
+ shade RAINF_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_RAINFF_TAVG.gif"
+SAY *** Generating RAINF_F_INST plot ***
+ shade RAINF_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_RAINFF_INST.gif"
+SAY *** Generating CRAINF_F_TAVG plot ***
+ shade CRAINF_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_CRAINFF_TAVG.gif"
+SAY *** Generating CRAINF_F_INST plot ***
+ shade CRAINF_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_CRAINFF_INST.gif"
+SAY *** Generating TAIR_F_TAVG plot ***
+ shade TAIR_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_TAIRF_TAVG.gif"
+SAY *** Generating TAIR_F_INST plot ***
+ shade TAIR_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_TAIRF_INST.gif"
+SAY *** Generating QAIR_F_TAVG plot ***
+ shade QAIR_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_QAIRF_TAVG.gif"
+SAY *** Generating QAIR_F_INST plot ***
+ shade QAIR_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_QAIRF_INST.gif"
+SAY *** Generating PSURF_F_TAVG plot ***
+ shade PSURF_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_PSURFF_TAVG.gif"
+SAY *** Generating PSURF_F_INST plot ***
+ shade PSURF_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_PSURFF_INST.gif"
+SAY *** Generating SWDOWN_F_TAVG plot ***
+ shade SWDOWN_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_SWDOWNF_TAVG.gif"
+SAY *** Generating SWDOWN_F_INST plot ***
+ shade SWDOWN_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_SWDOWNF_INST.gif"
+SAY *** Generating LWDOWN_F_TAVG plot ***
+ shade LWDOWN_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_LWDOWNF_TAVG.gif"
+SAY *** Generating LWDOWN_F_INST plot ***
+ shade LWDOWN_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_LWDOWNF_INST.gif"
+SAY *** Generating NWIND_F_TAVG plot ***
+ shade NWIND_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_NWINDF_TAVG.gif"
+SAY *** Generating NWIND_F_INST plot ***
+ shade NWIND_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_NWINDF_INST.gif"
+SAY *** Generating EWIND_F_TAVG plot ***
+ shade EWIND_F_TAVG
+ frame/file="($prefix)_LISHIST_($tstmp)_EWINDF_TAVG.gif"
+SAY *** Generating EWIND_F_INST plot ***
+ shade EWIND_F_INST
+ frame/file="($prefix)_LISHIST_($tstmp)_EWINDF_INST.gif"
+
+exit
+

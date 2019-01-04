@@ -61,19 +61,19 @@ module ESM
    ! create, open and set the config
      config = ESMF_ConfigCreate(rc=rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-     	 line=__LINE__, &
-      	 file=__FILE__)) &
-      	 return  ! bail out
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
      call ESMF_ConfigLoadFile(config, "lishydro.runconfig", rc=rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      	line=__LINE__, &
-      	file=__FILE__)) &
-      	return  ! bail out
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
      call ESMF_GridCompSet(driver, config=config, rc=rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      	line=__LINE__, &
-      	file=__FILE__)) &
-      	return  ! bail out
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
     
   end subroutine
 
@@ -91,7 +91,7 @@ module ESM
     type(ESMF_Clock)              :: internalClock
     type(ESMF_GridComp)           :: child
     type(ESMF_CplComp)            :: connector
-    type(ESMF_Config)             :: config	
+    type(ESMF_Config)             :: config
     type(NUOPC_FreeFormat)        :: attrFF
     logical                       :: enabledLnd, enabledHyd
     integer, allocatable          :: petList(:)
@@ -358,7 +358,7 @@ module ESM
   subroutine isComponentEnabled(config, label, isEnabled, rc)
     type(ESMF_Config), intent(inout) :: config
     character(len=*), intent(in)     :: label
-    logical, intent(out)             :: isEnabled	
+    logical, intent(out)             :: isEnabled
     integer, intent(out)             :: rc
 
     ! local
@@ -368,14 +368,14 @@ module ESM
     isEnabled = .true.
 
     call ESMF_ConfigGetAttribute(config, value, label=label//":", &
-    	 default="yes", rc=rc)
+        default="yes", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     
     isEnabled = (trim(value) == "yes")
-    	
+
   end subroutine isComponentEnabled
 
   subroutine getPetListFromConfig(config, label, petList, rc)
@@ -485,5 +485,6 @@ module ESM
 
   end subroutine getTimeFromConfig
 
+  !-----------------------------------------------------------------------------
 
 end module

@@ -38,6 +38,7 @@ function list_directories {
 }
 
 function compare_netcdf_lis {
+  local BOL_ERRORS=false
   local FIL_BSEPTH="$1"
   local FIL_BSEFIL=$(basename ${FIL_BSEPTH})
   local FIL_TSTPTH=`find ${DIR_TSTLIS} -maxdepth 2 -type f -name ${FIL_BSEFIL}`
@@ -53,21 +54,25 @@ function compare_netcdf_lis {
     VAL="$(echo ${CMPVAL} | cut -d'=' -f2)"
     if [[ $VAL != 0 ]]; then
       echo "ERROR: ${VAR} = ${VAL}"
-      CNT_ERRORS=$((CNT_ERRORS + 1))
+      BOL_ERRORS=true
     fi
   done
+  if [ "${BOL_ERRORS}" = true ]; then
+    CNT_ERRORS=$((CNT_ERRORS + 1))
+  fi
 }
 
 function compare_netcdf_hyd {
+  local BOL_ERRORS=false
   local FIL_BSEPTH="$1"
   local FIL_BSEFIL=$(basename ${FIL_BSEPTH})
   local FIL_TSTPTH=`find ${DIR_TSTHYD} -maxdepth 1 -type f -name ${FIL_BSEFIL}`
   local FIL_DIFFIL=${OPT_DIFDIR}/${OPT_DIFPFX}_${FIL_BSEFIL}
   local FIL_MBSFIL=${OPT_MBSDIR}/${OPT_MBSPFX}_${FIL_BSEFIL}
   echo "Checking: ${FIL_BSEFIL}"
-  ncrename ${OPT_HYDVRN} ${FIL_BSEPTH} > /dev/null
-  ncrename ${OPT_HYDVRN} ${FIL_TSTPTH} > /dev/null
-  ncdiff -O -C ${OPT_HYDVAR} ${FIL_BSEPTH} ${FIL_TSTPTH} ${FIL_DIFFIL}
+  ncrename ${OPT_HYDVRN} ${FIL_BSEPTH} TMP_BSEPTH.nc > /dev/null
+  ncrename ${OPT_HYDVRN} ${FIL_TSTPTH} TMP_TSTPTH.nc > /dev/null
+  ncdiff -O -C ${OPT_HYDVAR} TMP_BSEPTH.nc TMP_TSTPTH.nc ${FIL_DIFFIL}
   ncwa -O -ymabs ${FIL_DIFFIL} ${FIL_MBSFIL}
   LST_CMPVAL=`ncdump ${FIL_MBSFIL} | sed -e '1,/data:/d' | grep " = "`
   ARY_CMPVAL=$(echo $LST_CMPVAL | tr -d '[:space:]' | tr ";" "\n")
@@ -76,9 +81,50 @@ function compare_netcdf_hyd {
     VAL="$(echo ${CMPVAL} | cut -d'=' -f2)"
     if [[ $VAL != 0 ]]; then
       echo "ERROR: ${VAR} = ${VAL}"
-      CNT_ERRORS=$((CNT_ERRORS + 1))
+      BOL_ERRORS=true
     fi
   done
+  if [ "${BOL_ERRORS}" = true ]; then
+    CNT_ERRORS=$((CNT_ERRORS + 1))
+  fi
+  rm -f TMP_BSEPTH.nc TMP_TSTPTH.nc
+}
+
+function nccmp_netcdf_lis {
+  local FIL_BSEPTH="$1"
+  local FIL_BSEFIL=$(basename ${FIL_BSEPTH})
+  local FIL_TSTPTH=`find ${DIR_TSTLIS} -maxdepth 2 -type f -name ${FIL_BSEFIL}`
+  echo "Checking: ${FIL_BSEFIL}"
+  nccmp -d ${OPT_LISVAR} ${FIL_BSEPTH} ${FIL_TSTPTH}
+  if [ $? -ne 0 ]; then
+    CNT_ERRORS=$((CNT_ERRORS + 1))
+  fi
+}
+
+function nccmp_netcdf_hyd {
+  local FIL_BSEPTH="$1"
+  local FIL_BSEFIL=$(basename ${FIL_BSEPTH})
+  local FIL_TSTPTH=`find ${DIR_TSTHYD} -maxdepth 1 -type f -name ${FIL_BSEFIL}`
+  echo "Checking: ${FIL_BSEFIL}"
+  ncrename ${OPT_HYDVRN} ${FIL_BSEPTH} TMP_BSEPTH.nc > /dev/null
+  ncrename ${OPT_HYDVRN} ${FIL_TSTPTH} TMP_TSTPTH.nc > /dev/null
+  nccmp -d ${OPT_HYDVAR} TMP_BSEPTH.nc TMP_TSTPTH.nc
+  if [ $? -ne 0 ]; then
+    CNT_ERRORS=$((CNT_ERRORS + 1))
+  fi
+  rm -f TMP_BSEPTH.nc TMP_TSTPTH.nc
+}
+
+function check_exit {
+  if [[ $CNT_ERRORS != 0 ]]; then
+    echo ""
+    echo "CHECK: Found $CNT_ERRORS file with errors"
+    exit 1
+  else
+    echo ""
+    echo "CHECK: No errors"
+    exit 0
+  fi
 }
 
 while getopts ${INF_OPT} opt; do
@@ -152,19 +198,21 @@ LST_BSEHYD=(`find ${DIR_BSEHYD} -maxdepth 1 -type f -name ${PTN_HYDCRT} | sort`)
 check_command ncdiff
 check_command ncwa
 check_command ncrename
+check_command nccmp
 
 mkdir -p "${OPT_DIFDIR}"
 mkdir -p "${OPT_MBSDIR}"
 if [ "${OPT_ALLFIL}" = true ]; then
   for FILENAME in ${LST_BSELIS[@]}; do
-    compare_netcdf_lis ${FILENAME}
+    nccmp_netcdf_lis ${FILENAME}
   done
   for FILENAME in ${LST_BSEHYD[@]}; do
     compare_netcdf_hyd ${FILENAME}
   done
 else
-  compare_netcdf_lis ${LST_BSELIS[-1]}
+  nccmp_netcdf_lis ${LST_BSELIS[-1]}
   compare_netcdf_hyd ${LST_BSEHYD[-1]}
 fi
 
-exit $CNT_ERRORS
+check_exit
+

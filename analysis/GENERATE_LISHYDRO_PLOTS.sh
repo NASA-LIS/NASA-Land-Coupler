@@ -90,8 +90,9 @@ if [ ! -f ${SCP_HYDCRT} ]; then
    exit 1
 fi
 
-if [ ! -d ${OPT_RUNDIR} ]; then
-   echo "ERROR: Run directory missing [${OPT_RUNDIR}]"  1>&2
+DIR_RUNDIR="${LISHYDRO_DIR}/run/${OPT_RUNDIR}"
+if [ ! -d ${DIR_RUNDIR} ]; then
+   echo "ERROR: Run directory missing [${DIR_RUNDIR}]"  1>&2
    list_directories
    exit 1
 fi

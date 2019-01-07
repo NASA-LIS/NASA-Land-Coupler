@@ -7,18 +7,23 @@
 
 CANCEL MODE LOGO
 
+SAY *********************************
 SAY *** Generating LIS_HIST plots ***
-SAY
+SAY *********************************
 
-DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL dsetfp $1
 DEFINE SYMBOL prefix $2
 
 USE $1
 
 ! Load dataset 1 and compute output file label
+DEFINE SYMBOL dstbeg `STRRINDEX("($dsetfp)","/")+1`
+DEFINE SYMBOL dstend `STRLEN("($dsetfp)")`
+DEFINE SYMBOL dstlen `($dstend)-($dstbeg)`
+DEFINE SYMBOL dsetnm `SUBSTRING("($dsetfp)",($dstbeg),($dstlen))`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtebeg `STRRINDEX("($dsetnm)","_")+1`
 DEFINE SYMBOL dteend `STRINDEX("($dsetnm)",".")`
-DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
 DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
 
@@ -178,6 +183,9 @@ SAY *** Generating EWIND_F_TAVG plot ***
 SAY *** Generating EWIND_F_INST plot ***
  shade EWIND_F_INST
  frame/file="($prefix)_LISHIST_($tstmp)_EWINDF_INST.gif"
+
+SAY *********************************
+SAY 
 
 exit
 

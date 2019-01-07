@@ -7,18 +7,23 @@
 
 CANCEL MODE LOGO
 
+SAY ***********************************************
 SAY *** Generating LIS_RST_NOAH33 IGNORE0 plots ***
-SAY
+SAY ***********************************************
 
-DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL dsetfp $1
 DEFINE SYMBOL prefix $2
 
-USE $1 
- 
+USE $1
+
 ! Load dataset 1 and compute output file label
+DEFINE SYMBOL dstbeg `STRRINDEX("($dsetfp)","/")+1`
+DEFINE SYMBOL dstend `STRLEN("($dsetfp)")`
+DEFINE SYMBOL dstlen `($dstend)-($dstbeg)`
+DEFINE SYMBOL dsetnm `SUBSTRING("($dsetfp)",($dstbeg),($dstlen))`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtebeg `STRRINDEX("($dsetnm)","_")+1`
 DEFINE SYMBOL dteend `STRINDEX("($dsetnm)",".")`
-DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
 DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
 
@@ -91,6 +96,9 @@ SAY *** Generating T1 plot ***
 SAY *** Generating Z0 plot ***
  plot ignore0(Z0)
  frame/file="($prefix)_LISRST_($tstmp)_Z0.gif"
+
+SAY ***********************************************
+SAY 
 
 exit
 

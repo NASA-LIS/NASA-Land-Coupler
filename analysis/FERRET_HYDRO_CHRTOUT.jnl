@@ -7,20 +7,25 @@
 
 CANCEL MODE LOGO
 
+SAY **************************************
 SAY *** Generating HYDRO_CHRTOUT plots ***
-SAY
+SAY **************************************
 
-DEFINE SYMBOL dsetnm $1
+DEFINE SYMBOL dsetfp $1
 DEFINE SYMBOL prefix $2
 
 USE $1
 
 ! Load dataset 1 and compute output file label
+DEFINE SYMBOL dstbeg `STRRINDEX("($dsetfp)","/")+1`
+DEFINE SYMBOL dstend `STRLEN("($dsetfp)")`
+DEFINE SYMBOL dstlen `($dstend)-($dstbeg)`
+DEFINE SYMBOL dsetnm `SUBSTRING("($dsetfp)",($dstbeg),($dstlen))`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtebeg `1`
 DEFINE SYMBOL dteend `STRINDEX("($dsetnm)",".")`
-DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
-DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
+DEFINE SYMBOL tstmp  `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
 
 SAY *** Generating STREAMFLOW plot ***
  plot STREAMFLOW
@@ -28,5 +33,8 @@ SAY *** Generating STREAMFLOW plot ***
 SAY *** Generating HEAD plot ***
  plot HEAD
  frame/file="($prefix)_CHRTOUT_($tstmp)_HEAD.gif"
+
+SAY **************************************
+SAY 
 
 exit

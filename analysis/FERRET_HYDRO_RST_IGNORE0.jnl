@@ -8,19 +8,24 @@
 
 CANCEL MODE LOGO
 
+SAY ******************************************
 SAY *** Generating HYDRO_RST IGNORE0 plots ***
-SAY 
+SAY ******************************************
 
-DEFINE SYMBOL dsetnm $1
+! Load dataset 1 and compute output file label
+DEFINE SYMBOL dsetfp $1
 DEFINE SYMBOL prefix $2
 
 USE $1
 
 ! Load dataset 1 and compute output file label
+DEFINE SYMBOL dstbeg `STRRINDEX("($dsetfp)","/")+1`
+DEFINE SYMBOL dstend `STRLEN("($dsetfp)")`
+DEFINE SYMBOL dstlen `($dstend)-($dstbeg)`
+DEFINE SYMBOL dsetnm `SUBSTRING("($dsetfp)",($dstbeg),($dstlen))`
+DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
 DEFINE SYMBOL dtebeg `STRRINDEX("($dsetnm)",".")+1`
 DEFINE SYMBOL dteend `STRRINDEX("($dsetnm)","_")`
-DEFINE SYMBOL dsnlen `STRLEN("($dsetnm)")`
-DEFINE SYMBOL dtelen `($dteend)-($dtebeg)`
 DEFINE SYMBOL tstmp `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
 
 SAY *** Generating QBDRYRT plot ***
@@ -110,5 +115,8 @@ SAY *** Generating STC4 plot ***
 SAY *** Generating Z_GWSUBBAS plot ***
  plot  ignore0(Z_GWSUBBAS)
  frame/file="($prefix)_HYDRORST_($tstmp)_ZGWSUBBAS.gif"
+
+SAY ******************************************
+SAY 
 
 exit

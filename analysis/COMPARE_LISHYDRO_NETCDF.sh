@@ -22,7 +22,7 @@ CNT_ERRORS=0
 
 function check_command { 
   local COMMAND=$1
-  ${COMMAND} --help >/dev/null 2>&1 
+  which ${COMMAND} >/dev/null 2>&1 
   if [ $? -ne 0 ]; then
     echo "${COMMAND}: command not found" 1>&2
     exit 1
@@ -195,23 +195,26 @@ fi
 LST_BSELIS=(`find ${DIR_BSELIS} -maxdepth 2 -type f -name ${PTN_LISHST} | sort`)
 LST_BSEHYD=(`find ${DIR_BSEHYD} -maxdepth 1 -type f -name ${PTN_HYDCRT} | sort`)
 
+check_command ncdump
 check_command ncdiff
 check_command ncwa
 check_command ncrename
-check_command nccmp
+#check_command nccmp
 
 mkdir -p "${OPT_DIFDIR}"
 mkdir -p "${OPT_MBSDIR}"
 if [ "${OPT_ALLFIL}" = true ]; then
   for FILENAME in ${LST_BSELIS[@]}; do
-    nccmp_netcdf_lis ${FILENAME}
+#    nccmp_netcdf_lis ${FILENAME}
+    compare_netcdf_list ${FILENAME}
   done
   for FILENAME in ${LST_BSEHYD[@]}; do
     compare_netcdf_hyd ${FILENAME}
   done
 else
-  nccmp_netcdf_lis ${LST_BSELIS[-1]}
-  compare_netcdf_hyd ${LST_BSEHYD[-1]}
+#  nccmp_netcdf_lis ${LST_BSELIS[-1]}
+  compare_netcdf_lis ${LST_BSELIS[${#LST_BSELIS[@]}-1]}
+  compare_netcdf_hyd ${LST_BSEHYD[${#LST_BSEHYD[@]}-1]}
 fi
 
 check_exit

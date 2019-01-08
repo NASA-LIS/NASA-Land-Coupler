@@ -1,7 +1,7 @@
 #!/bin/bash
 
 INF_OPT=":hap:d:"
-INF_USG="Usage: $0 [-h] [-p PREFIX] [-d DIRECTOYR] RUN_DIRECTORY"
+INF_USG="Usage: $0 [-h] [-a] [-p PREFIX] [-d DIRECTORY] RUN_DIRECTORY"
 INF_HLP="Help:"
 
 OPT_RUNDIR="missing"
@@ -14,7 +14,7 @@ PTN_HYDCRT="*.CHRTOUT_DOMAIN1"
 
 function check_command { 
   local COMMAND=$1
-  ${COMMAND} -h >/dev/null 2>&1 
+  which ${COMMAND} >/dev/null 2>&1 
   if [ $? -ne 0 ]; then
     echo "${COMMAND}: command not found" 1>&2
     exit 1
@@ -123,7 +123,7 @@ if [ "${OPT_ALLFIL}" = true ]; then
     plot_hyd_chrtout ${FILENAME}
   done
 else
-  plot_lis_history ${LST_LISHST[-1]}
-  plot_hyd_chrtout ${LST_HYDCRT[-1]}
+  plot_lis_history ${LST_LISHST[${#LST_LISHST[@]}-1]}
+  plot_hyd_chrtout ${LST_HYDCRT[${#LST_HYDCRT[@]}-1]}
 fi
 

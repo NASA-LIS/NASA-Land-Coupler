@@ -29,6 +29,7 @@ set s_hr=`date +%H`; set s_mn=`date +%M`; set s_sc=`date +%S`
 echo "Model Start    ${s_hr}:${s_mn}:${s_sc}"
 
 mpirun -np __TASKS__ ./LISHydroApp >& lishydro.log
+set exec_s=$status
 
 set e_tm=`date +%s`
 set e_hr=`date +%H`; set e_mn=`date +%M`; set e_sc=`date +%S`
@@ -39,3 +40,9 @@ echo "Model End      ${e_hr}:${e_mn}:${e_sc}"
 @ r_mn=((${r_tm} % 3600) / 60)
 @ r_sc=(${r_tm} % 60)
 echo "Model Runtime  ${r_hr}:${r_mn}:${r_sc}"
+
+if ($exec_s != 0) then
+  echo "RESULT: ERROR ${exec_s}"
+else
+  echo "RESULT: SUCCESS"
+endif

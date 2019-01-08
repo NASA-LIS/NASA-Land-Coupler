@@ -20,10 +20,10 @@ stop_time:  __STOPTIME__
 # run sequence
 runSeq::
     @__TIMESTEP__
-        LND -> HYD :remapMethod=__REMAP__
-        HYD -> LND :remapMethod=__REMAP__
         LND
+        LND -> HYD :remapMethod=__REMAP__
         HYD
+        HYD -> LND :remapMethod=__REMAP__
     @
 ::
 

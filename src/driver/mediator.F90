@@ -9,10 +9,11 @@ module Mediator
   use NUOPC_Mediator, only: &
     mediator_routine_SS            => SetServices, &
     mediator_routine_Run           => routine_Run, &
-    mediator_label_CheckImport     => label_CheckImport, &
     mediator_label_DataInitialize  => label_DataInitialize, &
-    mediator_label_SetRunClock     => label_SetRunClock, &
     mediator_label_Advance         => label_Advance, &
+    mediator_label_CheckImport     => label_CheckImport, &
+    mediator_label_TimestampExport => label_TimestampExport, &
+    mediator_label_SetRunClock     => label_SetRunClock, &
     NUOPC_MediatorGet
   use fields, only: &
     med_fld_type, &
@@ -59,6 +60,9 @@ module Mediator
 
   integer,parameter :: BILNR = .false.
   integer,parameter :: FCOPY = .true.
+
+  type(ESMF_Time)    :: time_invalidTimeStamp
+  type(ESMF_Clock)   :: clock_invalidTimeStamp
 
   public SetServices
 
@@ -112,6 +116,54 @@ module Mediator
     ! attach specializing method(s)
     call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_Advance, &
       specRoutine=MediatorAdvance, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! set entry point for Run( phase = prepLND ) and specialize
+    call NUOPC_CompSetEntryPoint(mediator, ESMF_METHOD_RUN, &
+      phaseLabelList=(/"prepLND"/), &
+      userRoutine=mediator_routine_Run, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_Advance, &
+      specPhaseLabel="prepLND", specRoutine=MediatorPrepLND, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_TimestampExport, &
+      specPhaseLabel="prepLND", &
+      specRoutine=TimestampExport_prepLND, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! set entry point for Run( phase = prep_hyd ) and specialize
+    call NUOPC_CompSetEntryPoint(mediator, ESMF_METHOD_RUN, &
+      phaseLabelList=(/"prepHYD"/), &
+      userRoutine=mediator_routine_Run, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_Advance, &
+      specPhaseLabel="prepHYD", specRoutine=MediatorPrepHYD, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_TimestampExport, &
+      specPhaseLabel="prepHYD", &
+      specRoutine=TimestampExport_prepHYD, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call ESMF_MethodRemove(mediator, mediator_label_CheckImport, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_CheckImport, &
+      specRoutine=NUOPC_NoOp, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call ESMF_MethodRemove(mediator, mediator_label_SetRunClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_SetRunClock, &
+      specRoutine=SetRunClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -226,6 +278,17 @@ module Mediator
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   advertise fields in the nested state
     call field_advertise(HYD%allToFlds, HYD%toState, "cannot provide", rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call ESMF_TimeSet(time_invalidTimeStamp, yy=99999999, mm=1, dd=1, h=0, m=0, s=0, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    clock_invalidTimeStamp = ESMF_ClockCreate(clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockSet(clock_invalidTimeStamp, currTime=time_invalidTimeStamp, &
+      stopTime=time_invalidTimeStamp, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -914,12 +977,64 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
+  subroutine SetRunClock(mediator, rc)
+    type(ESMF_GridComp)  :: mediator
+    integer, intent(out) :: rc
+
+    ! local variables
+    type(ESMF_Clock)           :: mediatorClock, driverClock
+    type(ESMF_Time)            :: currTime
+    type(ESMF_TimeInterval)    :: timeStep
+    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock)'
+
+    rc = ESMF_SUCCESS
+
+    ! query the Mediator for clocks
+    call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, &
+      driverClock=driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! set the mediatorClock to have the current start time as the driverClock
+    call ESMF_ClockGet(driverClock, currTime=currTime, timeStep=timeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockSet(mediatorClock, currTime=currTime, timeStep=timeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! check and set the component clock against the driver clock
+    call NUOPC_CompCheckSetClock(mediator, driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+  end subroutine SetRunClock
+
+  !-----------------------------------------------------------------------------
+
   subroutine MediatorAdvance(mediator, rc)
+    type(ESMF_GridComp)  :: mediator
+    integer, intent(out) :: rc
+
+    rc = ESMF_SUCCESS
+
+    call MediatorPrepLND(mediator, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call MediatorPrepHYD(mediator, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine MediatorPrepLND(mediator, rc)
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
     ! local variables
     type(ESMF_Clock) :: clock
-    type(ESMF_State) :: importState, exportState
     logical :: do_bilnr
     logical :: do_fcopy
 
@@ -929,8 +1044,7 @@ module Mediator
     do_fcopy = FCOPY
 
     ! query the Component for its clock, importState and exportState
-    call ESMF_GridCompGet(mediator, clock=clock, importState=importState, &
-      exportState=exportState, rc=rc)
+    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -942,6 +1056,82 @@ module Mediator
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+    if (do_fcopy) then
+      call ESMF_FieldBundleRedist(toLND%srcFB, toLND%dstFB, &
+        routehandle=toLND%rhFcopy, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine TimestampExport_prepLND(mediator, rc)
+    type(ESMF_GridComp)   :: mediator
+    integer, intent(out)  :: rc
+
+    ! This attaches an invalid timestamp on fields sometimes.
+    ! Otherwise, it just sets the timestamp to the current clock.
+
+    ! local variables
+    integer                 :: n, fieldcount
+    type(ESMF_Clock)        :: driverClock
+    type(ESMF_Clock)        :: clock
+    type(ESMF_time)         :: currtime
+
+    rc = ESMF_SUCCESS
+
+    ! query the Component for info
+    call NUOPC_MediatorGet(mediator, driverClock=driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! set the Clock to have the current time as the driverClock
+    call ESMF_ClockGet(driverClock, currTime=currTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockSet(clock, currTime=currTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    !---------------------------
+    ! validate all data by default
+    !---------------------------
+
+    call NUOPC_UpdateTimestamp(LND%toState, clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine MediatorPrepHYD(mediator, rc)
+    type(ESMF_GridComp)  :: mediator
+    integer, intent(out) :: rc
+    ! local variables
+    type(ESMF_Clock) :: clock
+    logical :: do_bilnr
+    logical :: do_fcopy
+
+    rc = ESMF_SUCCESS
+
+    do_bilnr = BILNR
+    do_fcopy = FCOPY
+
+    ! query the Component for its clock
+    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
+    if (do_bilnr) then
       call ESMF_FieldBundleRegrid(toHYD%srcFB, toHYD%dstFB, &
         routehandle=toHYD%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
@@ -950,15 +1140,55 @@ module Mediator
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
     if (do_fcopy) then
-      call ESMF_FieldBundleRedist(toLND%srcFB, toLND%dstFB, &
-        routehandle=toLND%rhFcopy, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
       call ESMF_FieldBundleRedist(toHYD%srcFB, toHYD%dstFB, &
         routehandle=toHYD%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine TimestampExport_prepHYD(mediator, rc)
+    type(ESMF_GridComp)   :: mediator
+    integer, intent(out)  :: rc
+
+    ! This attaches an invalid timestamp on fields sometimes.
+    ! Otherwise, it just sets the timestamp to the current clock.
+
+    ! local variables
+    integer                 :: n, fieldcount
+    type(ESMF_Clock)        :: driverClock
+    type(ESMF_Clock)        :: clock
+    type(ESMF_time)         :: currtime
+
+    rc = ESMF_SUCCESS
+
+    ! query the Component for info
+    call NUOPC_MediatorGet(mediator, driverClock=driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! set the Clock to have the current time as the driverClock
+    call ESMF_ClockGet(driverClock, currTime=currTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockSet(clock, currTime=currTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    !---------------------------
+    ! validate all data by default
+    !---------------------------
+
+    call NUOPC_UpdateTimestamp(HYD%toState, clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
   end subroutine
 

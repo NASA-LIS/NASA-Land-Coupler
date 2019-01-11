@@ -15,14 +15,7 @@ module Mediator
     mediator_label_TimestampExport => label_TimestampExport, &
     mediator_label_SetRunClock     => label_SetRunClock, &
     NUOPC_MediatorGet
-  use fields, only: &
-    med_fld_type, &
-    fldsFrLnd, &
-    fldsFrHyd, &
-    fldsToLnd, &
-    fldsToHyd, &
-    field_dictionary_add, &
-    field_advertise
+  use Fields
 
   implicit none
 
@@ -58,8 +51,13 @@ module Mediator
   type(ESMF_PoleMethod_Flag), parameter :: polemethod=ESMF_POLEMETHOD_ALLAVG
   type(ESMF_UnmappedAction_Flag), parameter :: unmappedaction=ESMF_UNMAPPEDACTION_IGNORE
 
-  integer,parameter :: BILNR = .false.
-  integer,parameter :: FCOPY = .true.
+  type(fieldRemapFlag), parameter :: remapDstLND = FLD_REMAP_BILINR
+  type(fieldRemapFlag), parameter :: remapDstHYD = FLD_REMAP_BILINR
+  type(fieldMaskFlag), parameter  :: maskFrLND   = FLD_MASK_WTR
+  type(fieldMaskFlag), parameter  :: maskToLND   = FLD_MASK_WTR
+  type(fieldMaskFlag), parameter  :: maskFrHYD   = FLD_MASK_WTR
+  type(fieldMaskFlag), parameter  :: maskToHYD   = FLD_MASK_WTR
+
 
   type(ESMF_Time)    :: time_invalidTimeStamp
   type(ESMF_Clock)   :: clock_invalidTimeStamp
@@ -618,10 +616,12 @@ module Mediator
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! Compute RHs
-    call med_compute_rh(srcCmpList=(/LND/), dstCmp=HYD, conn=toHyd, rc=rc)
+    call med_compute_rh(srcCmpList=(/LND/), dstCmp=HYD, conn=toHyd, &
+      mapping=remapDstHYD, srcMask=maskFrLND, dstMask=maskToHYD,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_compute_rh(srcCmpList=(/HYD/), dstCmp=LND, conn=toLND, rc=rc)
+    call med_compute_rh(srcCmpList=(/HYD/), dstCmp=LND, conn=toLND, &
+      mapping=remapDstLND, srcMask=maskFrHYD, dstMask=maskToLND, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -860,28 +860,25 @@ module Mediator
 
     !---------------------------------------------------------------------------
 
-    subroutine med_compute_rh(srcCmpList, dstCmp, conn, srcMask, dstMask, rc)
+    subroutine med_compute_rh(srcCmpList, dstCmp, conn, mapping, &
+      srcMask, dstMask, rc)
       type(med_ext_conn_type),intent(in)    :: srcCmpList(:)
       type(med_ext_conn_type),intent(in)    :: dstCmp
       type(med_uni_conn_type),intent(inout) :: conn
-      integer,intent(in),optional           :: srcMask(:)
-      integer,intent(in),optional           :: dstMask(:)
+      type(fieldRemapFlag),intent(in)       :: mapping
+      type(fieldMaskFlag),intent(in)        :: srcMask
+      type(fieldMaskFlag),intent(in)        :: dstMask
       integer,intent(out)                   :: rc
       ! local variables
       integer :: i, j, k
       logical :: fieldMatch
       type(ESMF_Field) :: srcFld, dstFld
+      integer,allocatable :: srcMaskValues(:), dstMaskValues(:)
       real(ESMF_KIND_R8), pointer :: factorList(:)
       integer(ESMF_KIND_I4), pointer :: unmappedDstList(:)
       integer :: stat
 
-      logical :: do_bilnr
-      logical :: do_fcopy
-
       rc = ESMF_SUCCESS
-
-      do_bilnr = BILNR
-      do_fcopy = FCOPY
 
       allocate( &
         conn%srcFlds(size(dstCmp%connToFlds)), &
@@ -936,23 +933,63 @@ module Mediator
         endif
       enddo
 
-      if (do_bilnr) then
+      if (mapping .eq. FLD_REMAP_BILINR) then
+        if (srcMask .eq. FLD_MASK_NNE) then
+          allocate(srcMaskValues(0))
+        elseif (srcMask .eq. FLD_MASK_LND) then
+          allocate(srcMaskValues(1))
+          srcMaskValues = (/1/)
+        elseif (srcMask .eq. FLD_MASK_WTR) then
+          allocate(srcMaskValues(1))
+          srcMaskValues = (/0/)
+        else
+          call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+            msg="Source mask is not implemented.", &
+            line=__LINE__, &
+            file=__FILE__, &
+            rcToReturn=rc)
+          return
+        endif
+        if (dstMask .eq. FLD_MASK_NNE) then
+          allocate(dstMaskValues(0))
+        elseif (dstMask .eq. FLD_MASK_LND) then
+          allocate(dstMaskValues(1))
+          dstMaskValues = (/1/)
+        elseif (dstMask .eq. FLD_MASK_WTR) then
+          allocate(dstMaskValues(1))
+          dstMaskValues = (/0/)
+        else
+          call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+            msg="Destintation mask is not implemented.", &
+            line=__LINE__, &
+            file=__FILE__, &
+            rcToReturn=rc)
+          return
+        endif
         call ESMF_FieldBundleRegridStore(conn%srcFB, conn%dstFB, &
           routehandle=conn%rhBilnr, &
-          srcMaskValues=srcMask, &
-          dstMaskValues=dstMask, &
+          srcMaskValues=srcMaskValues, &
+          dstMaskValues=dstMaskValues, &
           regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
           polemethod=polemethod, &
           unmappedaction=unmappedaction, &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-      endif
-      if (do_fcopy) then
+        deallocate(srcMaskValues)
+        deallocate(dstMaskValues)
+      elseif (mapping .eq. FLD_REMAP_REDIST) then
         call ESMF_FieldBundleRedistStore(conn%srcFB, conn%dstFB, &
           routehandle=conn%rhFcopy, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
+      else
+        call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+          msg="Remapping method has not been implemented.", &
+          line=__LINE__, &
+          file=__FILE__, &
+          rcToReturn=rc)
+        return
       endif
 
     end subroutine
@@ -966,6 +1003,14 @@ module Mediator
     integer, intent(out) :: rc
 
     rc = ESMF_SUCCESS
+
+    call DataReset(toHYD, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call DataReset(toLND, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! indicate that data initialization is complete (breaking out of init-loop)
     call NUOPC_CompAttributeSet(mediator, &
@@ -1035,13 +1080,8 @@ module Mediator
     integer, intent(out) :: rc
     ! local variables
     type(ESMF_Clock) :: clock
-    logical :: do_bilnr
-    logical :: do_fcopy
 
     rc = ESMF_SUCCESS
-
-    do_bilnr = BILNR
-    do_fcopy = FCOPY
 
     ! query the Component for its clock, importState and exportState
     call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
@@ -1049,19 +1089,25 @@ module Mediator
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
-    if (do_bilnr) then
+    if (remapDstLND .eq. FLD_REMAP_BILINR) then
       call ESMF_FieldBundleRegrid(toLND%srcFB, toLND%dstFB, &
         routehandle=toLND%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-    endif
-    if (do_fcopy) then
+    elseif (remapDstLND .eq. FLD_REMAP_REDIST) then
       call ESMF_FieldBundleRedist(toLND%srcFB, toLND%dstFB, &
         routehandle=toLND%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+    else
+      call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+        msg="Remapping method has not been implemented.", &
+        line=__LINE__, &
+        file=__FILE__, &
+        rcToReturn=rc)
+      return
     endif
 
   end subroutine
@@ -1117,13 +1163,8 @@ module Mediator
     integer, intent(out) :: rc
     ! local variables
     type(ESMF_Clock) :: clock
-    logical :: do_bilnr
-    logical :: do_fcopy
 
     rc = ESMF_SUCCESS
-
-    do_bilnr = BILNR
-    do_fcopy = FCOPY
 
     ! query the Component for its clock
     call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
@@ -1131,19 +1172,25 @@ module Mediator
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
-    if (do_bilnr) then
+    if (remapDstHYD .eq. FLD_REMAP_BILINR) then
       call ESMF_FieldBundleRegrid(toHYD%srcFB, toHYD%dstFB, &
         routehandle=toHYD%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-    endif
-    if (do_fcopy) then
+    elseif (remapDstHYD .eq. FLD_REMAP_REDIST) then
       call ESMF_FieldBundleRedist(toHYD%srcFB, toHYD%dstFB, &
         routehandle=toHYD%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+    else
+      call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+        msg="Remapping method has not been implemented.", &
+        line=__LINE__, &
+        file=__FILE__, &
+        rcToReturn=rc)
+      return
     endif
 
   end subroutine
@@ -1189,6 +1236,41 @@ module Mediator
     call NUOPC_UpdateTimestamp(HYD%toState, clock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine DataReset(toComp, rc)
+    type(med_uni_conn_type) :: toComp
+    integer, intent(out) :: rc
+    ! local variables
+    integer :: i
+    type(ESMF_Field) :: field
+
+    rc = ESMF_SUCCESS
+
+    do i=1, size(toComp%srcFlds)
+      call ESMF_FieldBundleGet(toComp%srcFB, toComp%srcFlds(i)%stateName, &
+        field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_FieldFill(field, dataFillScheme="const", &
+        const1=REAL(toComp%srcFlds(i)%fillValue,ESMF_KIND_R8), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    enddo
+
+    do i=1, size(toComp%dstFlds)
+      call ESMF_FieldBundleGet(toComp%dstFB, toComp%dstFlds(i)%stateName, &
+        field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_FieldFill(field, dataFillScheme="const", &
+        const1=REAL(toComp%dstFlds(i)%fillValue,ESMF_KIND_R8), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    enddo
 
   end subroutine
 

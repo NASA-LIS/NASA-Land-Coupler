@@ -21,13 +21,13 @@ stop_time:  __STOPTIME__
 runSeq::
     @__TIMESTEP__
         LND
-        LND -> MED :remapMethod=__REMAP__
+        LND -> MED
         MED prepHYD
-        MED -> HYD :remapMethod=__REMAP__
+        MED -> HYD
         HYD
-        HYD -> MED :remapMethod=__REMAP__
+        HYD -> MED
         MED prepLND
-        MED -> LND :remapMethod=__REMAP__
+        MED -> LND
     @
 ::
 

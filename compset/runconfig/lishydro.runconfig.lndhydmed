@@ -33,17 +33,22 @@ runSeq::
 
 # component attributes
 driverAttributes::
-  Verbosity = high
+  Verbosity = 8192
+  Profiling = 0
+::
+
+connectorAttributes::
+  Verbosity = 8192
   Profiling = 0
 ::
 
 medAttributes::
-  Verbosity = high
+  Verbosity = 8192
   Profiling = 0
 ::
 
 lndAttributes::
-  Verbosity = high
+  Verbosity = 8192
   Profiling = 0
   debug_interval = 0
   nest_to_nest = false
@@ -51,7 +56,7 @@ lndAttributes::
 ::
 
 hydAttributes::
-  Verbosity = high
+  Verbosity = 8192
   Profiling = 0
   forcings_directory = "WRFHYDRO_FORCING"
   debug_interval = 0

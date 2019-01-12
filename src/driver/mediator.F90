@@ -53,10 +53,10 @@ module Mediator
 
   type(fieldRemapFlag), parameter :: remapDstLND = FLD_REMAP_BILINR
   type(fieldRemapFlag), parameter :: remapDstHYD = FLD_REMAP_BILINR
-  type(fieldMaskFlag), parameter  :: maskFrLND   = FLD_MASK_WTR
-  type(fieldMaskFlag), parameter  :: maskToLND   = FLD_MASK_WTR
-  type(fieldMaskFlag), parameter  :: maskFrHYD   = FLD_MASK_WTR
-  type(fieldMaskFlag), parameter  :: maskToHYD   = FLD_MASK_WTR
+  type(fieldMaskFlag), parameter  :: maskFrLND   = FLD_MASK_NNE
+  type(fieldMaskFlag), parameter  :: maskToLND   = FLD_MASK_NNE
+  type(fieldMaskFlag), parameter  :: maskFrHYD   = FLD_MASK_NNE
+  type(fieldMaskFlag), parameter  :: maskToHYD   = FLD_MASK_NNE
 
 
   type(ESMF_Time)    :: time_invalidTimeStamp
@@ -873,9 +873,10 @@ module Mediator
       integer :: i, j, k
       logical :: fieldMatch
       type(ESMF_Field) :: srcFld, dstFld
-      integer,allocatable :: srcMaskValues(:), dstMaskValues(:)
-      real(ESMF_KIND_R8), pointer :: factorList(:)
-      integer(ESMF_KIND_I4), pointer :: unmappedDstList(:)
+      integer,target :: maskLND(1) = (/1/)
+      integer,target :: maskWTR(1) = (/0/)
+      integer,pointer :: srcMaskValues(:)
+      integer,pointer :: dstMaskValues(:)
       integer :: stat
 
       rc = ESMF_SUCCESS
@@ -935,49 +936,70 @@ module Mediator
 
       if (mapping .eq. FLD_REMAP_BILINR) then
         if (srcMask .eq. FLD_MASK_NNE) then
-          allocate(srcMaskValues(0))
+          nullify(srcMaskValues)
         elseif (srcMask .eq. FLD_MASK_LND) then
-          allocate(srcMaskValues(1))
-          srcMaskValues = (/1/)
+          srcMaskValues=>maskLND
         elseif (srcMask .eq. FLD_MASK_WTR) then
-          allocate(srcMaskValues(1))
-          srcMaskValues = (/0/)
+          srcMaskValues=>maskWTR
         else
           call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
             msg="Source mask is not implemented.", &
-            line=__LINE__, &
-            file=__FILE__, &
-            rcToReturn=rc)
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
           return
         endif
         if (dstMask .eq. FLD_MASK_NNE) then
-          allocate(dstMaskValues(0))
+          nullify(dstMaskValues)
         elseif (dstMask .eq. FLD_MASK_LND) then
-          allocate(dstMaskValues(1))
-          dstMaskValues = (/1/)
+          dstMaskValues=>maskLND
         elseif (dstMask .eq. FLD_MASK_WTR) then
-          allocate(dstMaskValues(1))
-          dstMaskValues = (/0/)
+          dstMaskValues=>maskWTR
         else
           call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
             msg="Destintation mask is not implemented.", &
-            line=__LINE__, &
-            file=__FILE__, &
-            rcToReturn=rc)
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
           return
         endif
-        call ESMF_FieldBundleRegridStore(conn%srcFB, conn%dstFB, &
-          routehandle=conn%rhBilnr, &
-          srcMaskValues=srcMaskValues, &
-          dstMaskValues=dstMaskValues, &
-          regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
-          polemethod=polemethod, &
-          unmappedaction=unmappedaction, &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        deallocate(srcMaskValues)
-        deallocate(dstMaskValues)
+        if (associated(srcMaskValues) .AND. associated(dstMaskValues)) then
+          call ESMF_FieldBundleRegridStore(conn%srcFB, conn%dstFB, &
+            routehandle=conn%rhBilnr, &
+            srcMaskValues=srcMaskValues, &
+            dstMaskValues=dstMaskValues, &
+            regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+            polemethod=polemethod, &
+            unmappedaction=unmappedaction, &
+            rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        elseif (associated(srcMaskValues)) then
+          call ESMF_FieldBundleRegridStore(conn%srcFB, conn%dstFB, &
+            routehandle=conn%rhBilnr, &
+            srcMaskValues=srcMaskValues, &
+            regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+            polemethod=polemethod, &
+            unmappedaction=unmappedaction, &
+            rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        elseif (associated(dstMaskValues)) then
+          call ESMF_FieldBundleRegridStore(conn%srcFB, conn%dstFB, &
+            routehandle=conn%rhBilnr, &
+            dstMaskValues=dstMaskValues, &
+            regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+            polemethod=polemethod, &
+            unmappedaction=unmappedaction, &
+            rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        else
+          call ESMF_FieldBundleRegridStore(conn%srcFB, conn%dstFB, &
+            routehandle=conn%rhBilnr, &
+            regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+            polemethod=polemethod, &
+            unmappedaction=unmappedaction, &
+            rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        endif
       elseif (mapping .eq. FLD_REMAP_REDIST) then
         call ESMF_FieldBundleRedistStore(conn%srcFB, conn%dstFB, &
           routehandle=conn%rhFcopy, rc=rc)
@@ -986,9 +1008,7 @@ module Mediator
       else
         call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
           msg="Remapping method has not been implemented.", &
-          line=__LINE__, &
-          file=__FILE__, &
-          rcToReturn=rc)
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
         return
       endif
 
@@ -1104,9 +1124,7 @@ module Mediator
     else
       call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
         msg="Remapping method has not been implemented.", &
-        line=__LINE__, &
-        file=__FILE__, &
-        rcToReturn=rc)
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
       return
     endif
 
@@ -1187,9 +1205,7 @@ module Mediator
     else
       call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
         msg="Remapping method has not been implemented.", &
-        line=__LINE__, &
-        file=__FILE__, &
-        rcToReturn=rc)
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
       return
     endif
 

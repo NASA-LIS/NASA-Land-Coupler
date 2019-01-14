@@ -51,13 +51,12 @@ module Mediator
   type(ESMF_PoleMethod_Flag), parameter :: polemethod=ESMF_POLEMETHOD_ALLAVG
   type(ESMF_UnmappedAction_Flag), parameter :: unmappedaction=ESMF_UNMAPPEDACTION_IGNORE
 
-  type(fieldRemapFlag), parameter :: remapDstLND = FLD_REMAP_BILINR
-  type(fieldRemapFlag), parameter :: remapDstHYD = FLD_REMAP_BILINR
-  type(fieldMaskFlag), parameter  :: maskFrLND   = FLD_MASK_NNE
-  type(fieldMaskFlag), parameter  :: maskToLND   = FLD_MASK_NNE
-  type(fieldMaskFlag), parameter  :: maskFrHYD   = FLD_MASK_NNE
-  type(fieldMaskFlag), parameter  :: maskToHYD   = FLD_MASK_NNE
-
+  type(fieldRemapFlag) :: remapDstLND = FLD_REMAP_UNKOWN
+  type(fieldRemapFlag) :: remapDstHYD = FLD_REMAP_UNKOWN
+  type(fieldMaskFlag)  :: maskFrLND   = FLD_MASK_UNK
+  type(fieldMaskFlag)  :: maskToLND   = FLD_MASK_UNK
+  type(fieldMaskFlag)  :: maskFrHYD   = FLD_MASK_UNK
+  type(fieldMaskFlag)  :: maskToHYD   = FLD_MASK_UNK
 
   type(ESMF_Time)    :: time_invalidTimeStamp
   type(ESMF_Clock)   :: clock_invalidTimeStamp
@@ -392,24 +391,36 @@ module Mediator
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
+    ! local variables
+    type(ESMF_VM) :: vm
+    integer       :: medPetCount
 
     rc = ESMF_SUCCESS
 
-    call adjustAcceptedGeom(importState, rc=rc)
+    call ESMF_GridCompGet(mediator, vm=vm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call adjustAcceptedGeom(exportState, rc=rc)
+    call ESMF_VMGet(vm, petCount=medPetCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call adjustAcceptedGeom(importState, medPetCount=medPetCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call adjustAcceptedGeom(exportState, medPetCount=medPetCount, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    subroutine adjustAcceptedGeom(state, rc)
+    subroutine adjustAcceptedGeom(state, medPetCount, rc)
       ! Look at all of the fields in state, including in nested states. Adjust
       ! the distribution of the accepted geom object to a 1 DE/PET distribution.
-      type(ESMF_State)  :: state
-      integer, optional :: rc
+      type(ESMF_State)              :: state
+      integer,intent(in)            :: medPetCount
+      integer,intent(out),optional  :: rc
       ! local variables
       integer                                 :: itemCount, item
       type(ESMF_Field)                        :: field
@@ -419,8 +430,12 @@ module Mediator
       type(ESMF_GeomType_Flag)                :: geomtype
       type(ESMF_Grid)                         :: grid
       type(ESMF_Mesh)                         :: mesh
-      character(160)                          :: msgString
       type(ESMF_DistGrid)                     :: distgrid
+      type(ESMF_DELayout)                     :: delayout
+      integer                                 :: deCount
+      integer                                 :: petCount
+      integer, allocatable                    :: petMap(:)
+      integer                                 :: i
       integer                                 :: dimCount, tileCount
       integer, allocatable                    :: minIndexPTile(:,:), maxIndexPTile(:,:)
 
@@ -463,33 +478,57 @@ module Mediator
               call ESMF_GridGet(grid, distgrid=distgrid, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-              ! Create a custom DistGrid, based on the minIndex, maxIndex of the
-              ! accepted DistGrid, but with a default regDecomp for the current VM
-              ! that leads to 1DE/PET.
-              ! get dimCount and tileCount
-              call ESMF_DistGridGet(distgrid, dimCount=dimCount, &
-                tileCount=tileCount, rc=rc)
+              ! access the DELayout
+              call ESMF_DistGridGet(distgrid, delayout=delayout, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-              ! allocate minIndexPTile and maxIndexPTile accord. to dimCount and tileCount
-              allocate(minIndexPTile(dimCount, tileCount), &
-                maxIndexPTile(dimCount, tileCount))
-              ! get minIndex and maxIndex arrays
-              call ESMF_DistGridGet(distgrid, minIndexPTile=minIndexPTile, &
-                maxIndexPTile=maxIndexPTile, rc=rc)
+              ! access petMap
+              call ESMF_DELayoutGet(delayout, deCount=deCount, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-!              ! create the new DistGrid with the same minIndexPTile and maxIndexPTile,
-!              ! but with a default regDecompPTile
-!              distgrid = ESMF_DistGridCreate(minIndexPTile=minIndexPTile, &
-!                maxIndexPTile=maxIndexPTile, rc=rc)
-!              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!                line=__LINE__, file=__FILE__)) return  ! bail out
-!                file=__FILE__)) &
-!                return  ! bail out
-              distgrid = ESMF_DistGridCreate(distgrid=distgrid, rc=rc)
-              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, file=__FILE__)) return  ! bail out
+              if (deCount .gt. 0) then
+                petCount = 1
+                allocate(petMap(deCount))
+                call ESMF_DELayoutGet(delayout, petMap=petMap, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                do i=2,deCount
+                  if(ALL(petMap(i) .ne. petMap(1:i-1))) petCount = petCount + 1
+                enddo
+                deallocate(petMap)
+              else
+                petCount = 0
+              endif
+              if (petCount .eq. medPetCount) then
+                distgrid = ESMF_DistGridCreate(distgrid=distgrid, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+              else
+                ! Create a custom DistGrid, based on the minIndex, maxIndex of the
+                ! accepted DistGrid, but with a default regDecomp for the current VM
+                ! that leads to 1DE/PET.
+                ! get dimCount and tileCount
+                call ESMF_DistGridGet(distgrid, dimCount=dimCount, &
+                  tileCount=tileCount, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                ! allocate minIndexPTile and maxIndexPTile accord. to dimCount and tileCount
+                allocate(minIndexPTile(dimCount, tileCount), &
+                  maxIndexPTile(dimCount, tileCount))
+                ! get minIndex and maxIndex arrays
+                call ESMF_DistGridGet(distgrid, minIndexPTile=minIndexPTile, &
+                  maxIndexPTile=maxIndexPTile, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                ! create the new DistGrid with the same minIndexPTile and maxIndexPTile,
+                ! but with a default regDecompPTile
+                distgrid = ESMF_DistGridCreate(minIndexPTile=minIndexPTile, &
+                  maxIndexPTile=maxIndexPTile, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                ! local clean-up
+                deallocate(minIndexPTile, maxIndexPTile)
+              endif
               ! Create a new Grid on the new DistGrid and swap it in the Field
               grid = ESMF_GridCreate(distgrid, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -497,8 +536,6 @@ module Mediator
               call ESMF_FieldEmptySet(field, grid=grid, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-              ! local clean-up
-              deallocate(minIndexPTile, maxIndexPTile)
             elseif (geomtype==ESMF_GEOMTYPE_MESH) then
               ! empty field holds a Mesh with DistGrid
               call ESMF_FieldGet(field, mesh=mesh, rc=rc)
@@ -508,33 +545,57 @@ module Mediator
               call ESMF_MeshGet(mesh, elementDistgrid=distgrid, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-              ! Create a custom DistGrid, based on the minIndex, maxIndex of the
-              ! accepted DistGrid, but with a default regDecomp for the current VM
-              ! that leads to 1DE/PET.
-              ! get dimCount and tileCount
-              call ESMF_DistGridGet(distgrid, dimCount=dimCount, &
-                tileCount=tileCount, rc=rc)
+              ! access the DELayout
+              call ESMF_DistGridGet(distgrid, delayout=delayout, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-              ! allocate minIndexPTile and maxIndexPTile accord. to dimCount and tileCount
-              allocate(minIndexPTile(dimCount, tileCount), &
-                maxIndexPTile(dimCount, tileCount))
-              ! get minIndex and maxIndex arrays
-              call ESMF_DistGridGet(distgrid, minIndexPTile=minIndexPTile, &
-                maxIndexPTile=maxIndexPTile, rc=rc)
+              ! access petMap
+              call ESMF_DELayoutGet(delayout, deCount=deCount, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-!              ! create the new DistGrid with the same minIndexPTile and maxIndexPTile,
-!              ! but with a default regDecompPTile
-!              distgrid = ESMF_DistGridCreate(minIndexPTile=minIndexPTile, &
-!                maxIndexPTile=maxIndexPTile, rc=rc)
-!              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!                line=__LINE__, file=__FILE__)) return  ! bail out
-!                file=__FILE__)) &
-!                return  ! bail out
-              distgrid = ESMF_DistGridCreate(distgrid=distgrid, rc=rc)
-              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, file=__FILE__)) return  ! bail out
+              if (deCount .gt. 0) then
+                petCount = 1
+                allocate(petMap(deCount))
+                call ESMF_DELayoutGet(delayout, petMap=petMap, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                do i=2,deCount
+                  if(ALL(petMap(i) .ne. petMap(1:i-1))) petCount = petCount + 1
+                enddo
+                deallocate(petMap)
+              else
+                petCount = 0
+              endif
+              if (petCount .eq. medPetCount) then
+                distgrid = ESMF_DistGridCreate(distgrid=distgrid, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+              else
+                ! Create a custom DistGrid, based on the minIndex, maxIndex of the
+                ! accepted DistGrid, but with a default regDecomp for the current VM
+                ! that leads to 1DE/PET.
+                ! get dimCount and tileCount
+                call ESMF_DistGridGet(distgrid, dimCount=dimCount, &
+                  tileCount=tileCount, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                ! allocate minIndexPTile and maxIndexPTile accord. to dimCount and tileCount
+                allocate(minIndexPTile(dimCount, tileCount), &
+                  maxIndexPTile(dimCount, tileCount))
+                ! get minIndex and maxIndex arrays
+                call ESMF_DistGridGet(distgrid, minIndexPTile=minIndexPTile, &
+                  maxIndexPTile=maxIndexPTile, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                ! create the new DistGrid with the same minIndexPTile and maxIndexPTile,
+                ! but with a default regDecompPTile
+                distgrid = ESMF_DistGridCreate(minIndexPTile=minIndexPTile, &
+                  maxIndexPTile=maxIndexPTile, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                ! local clean-up
+                deallocate(minIndexPTile, maxIndexPTile)
+              endif
               ! Create a new Grid on the new DistGrid and swap it in the Field
               mesh = ESMF_MeshCreate(distgrid, distgrid, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -542,15 +603,11 @@ module Mediator
               call ESMF_FieldEmptySet(field, mesh=mesh, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
-              ! local clean-up
-              deallocate(minIndexPTile, maxIndexPTile)
             else
               call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
                 msg="Unsupported geom object found in "// &
                 trim(itemNameList(item)), &
-                line=__LINE__, &
-                file=__FILE__, &
-                rcToReturn=rc)
+                line=__LINE__, file=__FILE__, rcToReturn=rc)
               return ! bail out
             endif
           endif
@@ -571,9 +628,9 @@ module Mediator
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
-
     ! local variables
-    type(ESMF_Field)              :: field
+    type(ESMF_Field)  :: field
+    character(len=64) :: attValue
 
     rc = ESMF_SUCCESS
 
@@ -615,13 +672,55 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    ! Read Remapping Settings
+    call ESMF_AttributeGet(mediator, name="RemapLND", value=attValue, &
+      defaultValue="FLD_REMAP_REDIST", convention="NUOPC", purpose="Instance", &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    remapDstLND = attValue
+    call ESMF_AttributeGet(mediator, name="RemapHYD", value=attValue, &
+      defaultValue="FLD_REMAP_REDIST", convention="NUOPC", purpose="Instance", &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    remapDstHYD = attValue
+
+    ! Read Mask Settings
+    call ESMF_AttributeGet(mediator, name="MaskFrLND", value=attValue, &
+      defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    maskFrLND = attValue
+    call ESMF_AttributeGet(mediator, name="MaskToLND", value=attValue, &
+      defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    maskToLND = attValue
+    call ESMF_AttributeGet(mediator, name="MaskFrHYD", value=attValue, &
+      defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    maskFrHYD = attValue
+    call ESMF_AttributeGet(mediator, name="MaskToHYD", value=attValue, &
+      defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    maskToHYD = attValue
+
     ! Compute RHs
     call med_compute_rh(srcCmpList=(/LND/), dstCmp=HYD, conn=toHyd, &
-      mapping=remapDstHYD, srcMask=maskFrLND, dstMask=maskToHYD,rc=rc)
+      label="MED: toHYD", mapping=remapDstHYD, &
+      srcMask=maskFrLND, dstMask=maskToHYD, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call med_compute_rh(srcCmpList=(/HYD/), dstCmp=LND, conn=toLND, &
-      mapping=remapDstLND, srcMask=maskFrHYD, dstMask=maskToLND, rc=rc)
+      label="MED: toLND", mapping=remapDstLND, &
+      srcMask=maskFrHYD, dstMask=maskToLND, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -860,10 +959,11 @@ module Mediator
 
     !---------------------------------------------------------------------------
 
-    subroutine med_compute_rh(srcCmpList, dstCmp, conn, mapping, &
+    subroutine med_compute_rh(srcCmpList, dstCmp, label, conn, mapping, &
       srcMask, dstMask, rc)
       type(med_ext_conn_type),intent(in)    :: srcCmpList(:)
       type(med_ext_conn_type),intent(in)    :: dstCmp
+      character(*),intent(in)               :: label
       type(med_uni_conn_type),intent(inout) :: conn
       type(fieldRemapFlag),intent(in)       :: mapping
       type(fieldMaskFlag),intent(in)        :: srcMask
@@ -877,6 +977,10 @@ module Mediator
       integer,target :: maskWTR(1) = (/0/)
       integer,pointer :: srcMaskValues(:)
       integer,pointer :: dstMaskValues(:)
+      character(len=24) :: remapStr
+      character(len=24) :: srcMaskStr
+      character(len=24) :: dstMaskStr
+      character(len=124) :: msg
       integer :: stat
 
       rc = ESMF_SUCCESS
@@ -933,6 +1037,17 @@ module Mediator
           return ! bail out
         endif
       enddo
+
+#if 1
+      remapStr = mapping
+      srcMaskStr = srcMask
+      dstMaskStr = dstMask
+      write (msg,"(A10,3(A,A))") label, " remapping= ",trim(remapStr), &
+        " srcMask=", trim(srcMaskStr), " dstMask=", trim(dstMaskStr)
+      call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+#endif
 
       if (mapping .eq. FLD_REMAP_BILINR) then
         if (srcMask .eq. FLD_MASK_NNE) then
@@ -1299,7 +1414,7 @@ module Mediator
     ! local variables
     integer                               :: stat
     integer                               :: itemCount
-    character(len=64),allocatable         :: itemNameList(:)
+    character(len=64), allocatable        :: itemNameList(:)
     integer                               :: iIndex
     character(len=80)                     :: logMsg
 

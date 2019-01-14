@@ -33,22 +33,28 @@ runSeq::
 
 # component attributes
 driverAttributes::
-  Verbosity = 8192
+  Verbosity = max
   Profiling = 0
 ::
 
 connectorAttributes::
-  Verbosity = 8192
+  Verbosity = 0
   Profiling = 0
 ::
 
 medAttributes::
-  Verbosity = 8192
+  Verbosity = max
   Profiling = 0
+  RemapLND = FLD_REMAP_BILINR 
+  RemapHYD = FLD_REMAP_BILINR
+  MaskFrLND = FLD_MASK_NNE
+  MaskToLND = FLD_MASK_NNE
+  MaskFrHYD = FLD_MASK_NNE
+  MaskToHYD = FLD_MASK_NNE
 ::
 
 lndAttributes::
-  Verbosity = 8192
+  Verbosity = max
   Profiling = 0
   debug_interval = 0
   nest_to_nest = false
@@ -56,7 +62,7 @@ lndAttributes::
 ::
 
 hydAttributes::
-  Verbosity = 8192
+  Verbosity = max
   Profiling = 0
   forcings_directory = "WRFHYDRO_FORCING"
   debug_interval = 0

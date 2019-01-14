@@ -17,10 +17,11 @@ module Fields
       integer :: remap
   end type
 
-  type(fieldRemapFlag), parameter ::      &
-    FLD_REMAP_UNKOWN = fieldRemapFlag(0), &
-    FLD_REMAP_REDIST = fieldRemapFlag(1), &
-    FLD_REMAP_BILINR = fieldRemapFlag(2), &
+  type(fieldRemapFlag), parameter ::       &
+    FLD_REMAP_ERROR  = fieldRemapFlag(-1), &
+    FLD_REMAP_UNKOWN = fieldRemapFlag(0),  &
+    FLD_REMAP_REDIST = fieldRemapFlag(1),  &
+    FLD_REMAP_BILINR = fieldRemapFlag(2),  &
     FLD_REMAP_CONSRV = fieldRemapFlag(3)
 
   type fieldMaskFlag
@@ -29,10 +30,11 @@ module Fields
       integer :: mask
   end type
 
-  type(fieldMaskFlag), parameter ::  &
-    FLD_MASK_UNK = fieldMaskFlag(0), &
-    FLD_MASK_NNE = fieldMaskFlag(1), &
-    FLD_MASK_LND = fieldMaskFlag(2), &
+  type(fieldMaskFlag), parameter ::   &
+    FLD_MASK_ERR = fieldMaskFlag(-1), &
+    FLD_MASK_UNK = fieldMaskFlag(0),  &
+    FLD_MASK_NNE = fieldMaskFlag(1),  &
+    FLD_MASK_LND = fieldMaskFlag(2),  &
     FLD_MASK_WTR = fieldMaskFlag(3)
 
   type med_fld_type
@@ -155,12 +157,14 @@ module Fields
   type(med_fld_syn_type),dimension(0) :: fldsHydToLnd
 
   public fieldRemapFlag
+  public FLD_REMAP_ERROR
   public FLD_REMAP_UNKOWN
   public FLD_REMAP_REDIST
   public FLD_REMAP_BILINR
   public FLD_REMAP_CONSRV
 
   public fieldMaskFlag
+  public FLD_MASK_ERR
   public FLD_MASK_UNK
   public FLD_MASK_NNE
   public FLD_MASK_LND
@@ -192,6 +196,8 @@ module Fields
   interface assignment (=)
     module procedure field_rfas_string
     module procedure field_mfas_string
+    module procedure field_stringas_rf
+    module procedure field_stringas_mf
   end interface
 
   !-----------------------------------------------------------------------------
@@ -224,6 +230,24 @@ module Fields
 
   !-----------------------------------------------------------------------------
 
+  subroutine field_stringas_rf(rfval, string)
+    type(fieldRemapFlag), intent(out) :: rfval
+    character(len=*), intent(in) :: string
+    if (string .eq. 'FLD_REMAP_UNKOWN') then
+      rfval = FLD_REMAP_UNKOWN
+    elseif (string .eq. 'FLD_REMAP_REDIST') then
+      rfval = FLD_REMAP_REDIST
+    elseif (string .eq.'FLD_REMAP_BILINR') then
+      rfval = FLD_REMAP_BILINR
+    elseif (string .eq. 'FLD_REMAP_CONSRV') then
+      rfval = FLD_REMAP_CONSRV
+    else
+      rfval = FLD_REMAP_ERROR
+    endif
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
   function field_mfeq(mf1, mf2)
     logical field_mfeq
     type(fieldMaskFlag), intent(in) :: mf1, mf2
@@ -245,6 +269,24 @@ module Fields
       write(string,'(a)') 'FLD_MASK_WTR'
     else
       write(string,'(a)') 'FLD_MASK_ERR'
+    endif
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine field_stringas_mf(mfval,string)
+    type(fieldMaskFlag), intent(out) :: mfval
+    character(len=*), intent(in) :: string
+    if (string .eq. 'FLD_MASK_UNK') then
+      mfval = FLD_MASK_UNK
+    elseif (string .eq. 'FLD_MASK_NNE') then
+      mfval = FLD_MASK_NNE
+    elseif (string .eq. 'FLD_MASK_LND') then
+      mfval = FLD_MASK_LND
+    elseif (string .eq. 'FLD_MASK_WTR') then
+      mfval = FLD_MASK_WTR
+    else
+      mfval = FLD_MASK_ERR
     endif
   end subroutine
 

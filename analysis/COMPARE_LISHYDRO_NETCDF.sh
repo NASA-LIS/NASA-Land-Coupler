@@ -206,7 +206,7 @@ mkdir -p "${OPT_MBSDIR}"
 if [ "${OPT_ALLFIL}" = true ]; then
   for FILENAME in ${LST_BSELIS[@]}; do
 #    nccmp_netcdf_lis ${FILENAME}
-    compare_netcdf_list ${FILENAME}
+    compare_netcdf_lis ${FILENAME}
   done
   for FILENAME in ${LST_BSEHYD[@]}; do
     compare_netcdf_hyd ${FILENAME}

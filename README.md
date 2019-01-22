@@ -47,21 +47,20 @@ $ source $LISHYDRO_DIR/modules/build.discover.intel14
 ```
 $ source $LISHYDRO_DIR/modules/build.cheyenne.intel17
 ```
-Since LIS is not yet available in git, a manual step is
-required to check out LIS from subversion.  Hopefully, LIS
-will be moved into git soon and this step will be eliminated.
-**Note the default version of SVN on Discover is too old, so
-please be sure to source the file above to get the updated SVN module.**
+LIS and WRF-Hydro are included as git submodules. The following
+commands provide an alternative to using the --recursive git
+clone option.
 ```
-$ cd $LISHYDRO_DIR/src    # go into src directory of cloned repository
-$ svn co --username=<you> https://progress.nccs.nasa.gov/svn/lis/external/LIS_NEMS LIS
+$ cd $LISHYDRO_DIR        # go into the cloned repository
+$ git submodule init
+$ git submodule update
 ```
 
 ## Build Instructions
 
 **Build LIS**
 ```
-$ cd $LISHYDRO_DIR/src/LIS
+$ cd $LISHYDRO_DIR/src/LISF/lis
 $ ./configure    # accept all the default options
 $ cd runmodes/nuopc_cpl_mode
 $ make nuopcinstall INSTPATH=$LISHYDRO_DIR/LIS-INSTALL
@@ -83,19 +82,19 @@ $ make
 
 ## Run Instructions
 
-**NOTE:  Runs are currently only supported on Discover.  Support for Cheyenne
-  is forthcoming.**
+**NOTE:  Runs are currently only supported on Discover and Cheyenne.**
 
 Individual configurations are called compsets and are
 located in the $LISHYDRO_DIR/compset directory. Compsets
-have the naming convention:  *lishydro.runconfig.&lt;compset&gt;*.
+have the naming convention:  *runsettings/&lt;compset&gt;*.
 
 Current supported compsets:
 
-| Compset                   | Description                                                 |
-| ------------------------- | ----------------------------------------------------------- |
-| frontrange.ldas           | WRF-Hydro standalone forced by LDAS output                  |
-| irene.nldas2              | LIS standalone forced by NLDAS                              |
+| Compset                      | Description                                              |
+| ---------------------------- | -------------------------------------------------------- |
+| frontrange.ldas              | WRF-Hydro standalone forced by LDAS output               |
+| irene.nldas2                 | LIS standalone forced by NLDAS                           |
+| coupled_tuolumne.noah.nldas2 | Coupled LIS, Mediator, and WRF-Hydro forced by NLDAS     |
 
 **Setup Run Directory**
 ```
@@ -111,7 +110,8 @@ The batch script *run.csh* can be modified if needed, for example
 to change the number of MPI tasks or the project number.
 ```
 $ cd $LISHYDRO_DIR/run/<compset>
-$ sbatch < run.csh   # only works on Discover now
+$ sbatch run.csh   # Discover - SLURM
+$ qsub run.csh     # Cheyenne - PBS
 ```
 This will submit the run to the batch queue.  Output
 will appear in the same directory.

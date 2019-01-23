@@ -10,7 +10,7 @@ COMPARE_LISHYDRO_NETCDF.sh
 ```
 Usage:
 ```
-$ ./COMPARE_LISHYDRO_NETCDF.sh [-h] [-a] BASE_DIRECTORY TEST_DIRECTORY
+$ ./COMPARE_LISHYDRO_NETCDF.sh [-h] [-a] [-d DATE] BASE_DIRECTORY TEST_DIRECTORY
 ```
 
 ## Generate LIS Hydro Plots using NOAA Ferret Utility

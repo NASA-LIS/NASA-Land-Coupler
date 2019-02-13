@@ -1,3 +1,5 @@
+#include "settings.h"
+
 module ESM
 
   !-----------------------------------------------------------------------------
@@ -63,7 +65,7 @@ module ESM
     config = ESMF_ConfigCreate(rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call ESMF_ConfigLoadFile(config, "lishydro.runconfig", rc=rc)
+    call ESMF_ConfigLoadFile(config, filename=LISHYDRO_CONFIG, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call ESMF_GridCompSet(driver, config=config, rc=rc)

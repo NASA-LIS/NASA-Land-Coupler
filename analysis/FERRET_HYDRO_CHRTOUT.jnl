@@ -29,10 +29,10 @@ DEFINE SYMBOL tstmp  `SUBSTRING("($dsetnm)",($dtebeg),($dtelen))`
 
 SAY *** Generating STREAMFLOW plot ***
  plot STREAMFLOW
- frame/file="($prefix)_CHRTOUT_($tstmp)_STREAMFLOW.gif"
+ frame/file="($prefix)_CHRTOUT_STREAMFLOW_($tstmp).gif"
 SAY *** Generating HEAD plot ***
  plot HEAD
- frame/file="($prefix)_CHRTOUT_($tstmp)_HEAD.gif"
+ frame/file="($prefix)_CHRTOUT_HEAD_($tstmp).gif"
 
 SAY **************************************
 SAY 

@@ -1,3 +1,5 @@
+#include "settings.h"
+
 module Mediator
 
   !-----------------------------------------------------------------------------
@@ -812,14 +814,14 @@ module Mediator
             endif
 
             if (associated(ugLBound).and.associated(ugUBound)) then
-              call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, &
+              call ESMF_FieldEmptyComplete(field, typekind=LISHYDRO_TYPEKIND, &
                 ungriddedLBound=ugLBound, ungriddedUBound=ugUBound, &
                 gridToFieldMap=gridToFieldMap, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
               deallocate(ugLBound, ugUBound)
             else
-              call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, &
+              call ESMF_FieldEmptyComplete(field, typekind=LISHYDRO_TYPEKIND, &
                 gridToFieldMap=gridToFieldMap, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1387,7 +1389,7 @@ module Mediator
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       call ESMF_FieldFill(field, dataFillScheme="const", &
-        const1=REAL(toComp%srcFlds(i)%fillValue,ESMF_KIND_R8), rc=rc)
+        const1=REAL(toComp%srcFlds(i)%fillValue,LISHYDRO_KIND), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     enddo
@@ -1398,7 +1400,7 @@ module Mediator
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       call ESMF_FieldFill(field, dataFillScheme="const", &
-        const1=REAL(toComp%dstFlds(i)%fillValue,ESMF_KIND_R8), rc=rc)
+        const1=REAL(toComp%dstFlds(i)%fillValue,LISHYDRO_KIND), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     enddo

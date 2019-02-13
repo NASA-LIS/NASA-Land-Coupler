@@ -1,3 +1,5 @@
+#include "settings.h"
+
 program esmApp
 
   !-----------------------------------------------------------------------------
@@ -13,7 +15,7 @@ program esmApp
   type(ESMF_GridComp)     :: esmComp
   
   ! Initialize ESMF
-  call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, &
+  call ESMF_Initialize(logkindflag=LISHYDRO_LOGKIND, &
     defaultCalkind=ESMF_CALKIND_GREGORIAN, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &

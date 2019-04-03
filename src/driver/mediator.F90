@@ -16,6 +16,7 @@ module Mediator
     mediator_label_CheckImport     => label_CheckImport, &
     mediator_label_TimestampExport => label_TimestampExport, &
     mediator_label_SetRunClock     => label_SetRunClock, &
+    mediator_label_Finalize        => label_Finalize, &
     NUOPC_MediatorGet
   use Fields
 
@@ -43,23 +44,29 @@ module Mediator
     type(ESMF_RouteHandle)           :: rhFcopy
   end type med_uni_conn_type
 
-  type(med_ext_conn_type) :: LND
-  type(med_ext_conn_type) :: HYD
+  character(*), parameter :: &
+    label_InternalState = "Med_InternalState"
 
-  type(med_uni_conn_type) :: toLND
-  type(med_uni_conn_type) :: toHYD
+  type type_InternalStateStruct
+    type(med_ext_conn_type) :: LND
+    type(med_ext_conn_type) :: HYD
+    type(med_uni_conn_type) :: toLND
+    type(med_uni_conn_type) :: toHYD
+    type(fieldRemapFlag)    :: remapDstLND = FLD_REMAP_UNKOWN
+    type(fieldRemapFlag)    :: remapDstHYD = FLD_REMAP_UNKOWN
+    type(fieldMaskFlag)     :: maskFrLND   = FLD_MASK_UNK
+    type(fieldMaskFlag)     :: maskToLND   = FLD_MASK_UNK
+    type(fieldMaskFlag)     :: maskFrHYD   = FLD_MASK_UNK
+    type(fieldMaskFlag)     :: maskToHYD   = FLD_MASK_UNK
+  end type
+
+  type type_InternalState
+    type(type_InternalStateStruct), pointer :: wrap
+  end type
 
   integer, parameter :: srcTermProcessing_Value = 0
   type(ESMF_PoleMethod_Flag), parameter :: polemethod=ESMF_POLEMETHOD_ALLAVG
   type(ESMF_UnmappedAction_Flag), parameter :: unmappedaction=ESMF_UNMAPPEDACTION_IGNORE
-
-  type(fieldRemapFlag) :: remapDstLND = FLD_REMAP_UNKOWN
-  type(fieldRemapFlag) :: remapDstHYD = FLD_REMAP_UNKOWN
-  type(fieldMaskFlag)  :: maskFrLND   = FLD_MASK_UNK
-  type(fieldMaskFlag)  :: maskToLND   = FLD_MASK_UNK
-  type(fieldMaskFlag)  :: maskFrHYD   = FLD_MASK_UNK
-  type(fieldMaskFlag)  :: maskToHYD   = FLD_MASK_UNK
-
   type(ESMF_Time)    :: time_invalidTimeStamp
   type(ESMF_Clock)   :: clock_invalidTimeStamp
 
@@ -72,6 +79,9 @@ module Mediator
   subroutine SetServices(mediator, rc)
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
+    ! local variables
+    type(type_InternalState)  :: is
+    integer                   :: stat
 
     rc = ESMF_SUCCESS
 
@@ -171,6 +181,21 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_Finalize, &
+      specRoutine=MediatorFinalize, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! Set up the internal state
+    allocate(is%wrap, stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of internal state memory failed.", &
+      line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+      return  ! bail out
+    call ESMF_GridCompSetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
   end subroutine
 
   !-----------------------------------------------------------------------------
@@ -180,8 +205,75 @@ module Mediator
     type(ESMF_State)      :: importState, exportState
     type(ESMF_Clock)      :: clock
     integer, intent(out)  :: rc
+    ! local variables
+    character(len=40)         :: name
+    character(*), parameter   :: rName="InitializeP1"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
+    character(ESMF_MAXSTR)    :: msg
 
     rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! log settings
+    if (verbosity>0) then
+      call ESMF_LogWrite(trim(name)//": Settings", ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      write (msg,"(A,I0)") trim(name)//":   Verbosity=", verbosity
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      write (msg,"(A,I0)") trim(name)//":   Diagnostic=", diagnostic
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     ! Switch to IPDv03 by filtering all other phaseMap entries
     call NUOPC_CompFilterPhaseMap(mediator, ESMF_METHOD_INITIALIZE, &
@@ -199,30 +291,81 @@ module Mediator
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
+    ! local variables
+    character(len=40)         :: name
+    character(*), parameter   :: rName="InitializeP1"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
     ! Attach field lists
-    LND%allFrFlds => fldsFrLnd
-    LND%allToFlds => fldsToLnd
-    HYD%allFrFlds => fldsFrHyd
-    HYD%allToFlds => fldsToHyd
+    is%wrap%LND%allFrFlds => fldsFrLnd
+    is%wrap%LND%allToFlds => fldsToLnd
+    is%wrap%HYD%allFrFlds => fldsFrHyd
+    is%wrap%HYD%allToFlds => fldsToHyd
 
     ! ###################
     ! # Fields from LND #
     ! ###################
 
     ! add to field dictionary
-    call field_dictionary_add(LND%allFrFlds, rc=rc)
+    call field_dictionary_add(is%wrap%LND%allFrFlds, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   use namespace in the importState
     call NUOPC_AddNamespace(importState, namespace="LND", &
-      nestedState=LND%frState, rc=rc)
+      nestedState=is%wrap%LND%frState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   advertise fields in the nested state
-    call field_advertise(LND%allFrFlds, LND%frState, "cannot provide", rc)
+    call field_advertise(is%wrap%LND%allFrFlds, is%wrap%LND%frState, "cannot provide", rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -231,16 +374,16 @@ module Mediator
     ! #################
 
     ! add to field dictionary
-    call field_dictionary_add(LND%allToFlds, rc=rc)
+    call field_dictionary_add(is%wrap%LND%allToFlds, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   use namespace in the exportState
     call NUOPC_AddNamespace(exportState, namespace="LND", &
-      nestedState=LND%toState, rc=rc)
+      nestedState=is%wrap%LND%toState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   advertise fields in the nested state
-    call field_advertise(LND%allToFlds, LND%toState, "cannot provide", rc)
+    call field_advertise(is%wrap%LND%allToFlds, is%wrap%LND%toState, "cannot provide", rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -249,16 +392,16 @@ module Mediator
     ! ###################
 
     ! add to field dictionary
-    call field_dictionary_add(HYD%allFrFlds, rc=rc)
+    call field_dictionary_add(is%wrap%HYD%allFrFlds, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   use namespace in the importState
     call NUOPC_AddNamespace(importState, namespace="HYD", &
-      nestedState=HYD%frState, rc=rc)
+      nestedState=is%wrap%HYD%frState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   advertise fields in the nested state
-    call field_advertise(HYD%allFrFlds, HYD%frState, "cannot provide", rc)
+    call field_advertise(is%wrap%HYD%allFrFlds, is%wrap%HYD%frState, "cannot provide", rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -267,16 +410,16 @@ module Mediator
     ! #################
 
     ! add to field dictionary
-    call field_dictionary_add(HYD%allToFlds, rc=rc)
+    call field_dictionary_add(is%wrap%HYD%allToFlds, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   use namespace in the exportState
     call NUOPC_AddNamespace(exportState, namespace="HYD", &
-      nestedState=HYD%toState, rc=rc)
+      nestedState=is%wrap%HYD%toState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     !   advertise fields in the nested state
-    call field_advertise(HYD%allToFlds, HYD%toState, "cannot provide", rc)
+    call field_advertise(is%wrap%HYD%allToFlds, is%wrap%HYD%toState, "cannot provide", rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -302,8 +445,59 @@ module Mediator
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
+    ! local variables
+    character(len=40)         :: name
+    character(*), parameter   :: rName="InitializeP3"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     call checkConnectedFlagProvide(importState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -394,10 +588,60 @@ module Mediator
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
     ! local variables
-    type(ESMF_VM) :: vm
-    integer       :: medPetCount
+    character(len=40)         :: name
+    character(*), parameter   :: rName="InitializeP4"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
+    type(ESMF_VM)             :: vm
+    integer                   :: medPetCount
 
     rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     call ESMF_GridCompGet(mediator, vm=vm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -631,10 +875,60 @@ module Mediator
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
     ! local variables
-    type(ESMF_Field)  :: field
-    character(len=64) :: attValue
+    character(len=40)         :: name
+    character(*), parameter   :: rName="InitializeP5"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
+    type(ESMF_Field)          :: field
+    character(len=64)         :: attValue
 
     rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     call realizeWithAcceptedGeom(importState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -645,34 +939,35 @@ module Mediator
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! Generate connect field lists
-    call med_ext_conn_realize(LND, rc=rc)
+    call med_ext_conn_realize(is%wrap%LND, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_ext_conn_realize(HYD, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-
-    ! Log Realized State
-    call med_log_state(LND%frState,"MED: frLnd",rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_log_state(LND%toState,"MED: toLnd",rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_log_state(HYD%frState,"MED: frHyd",rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_log_state(HYD%toState,"MED: toHyd",rc)
+    call med_ext_conn_realize(is%wrap%HYD, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    ! Log DistGrid
-    call med_log_distgrid(LND%frState,"MED: frLnd",rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_log_distgrid(HYD%frState,"MED: frHyd",rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (btest(verbosity,16)) then
+      ! Log Realized State
+      call MedState_LogWrite(is%wrap%LND%frState,"MED: frLnd",rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call MedState_LogWrite(is%wrap%LND%toState,"MED: toLnd",rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call MedState_LogWrite(is%wrap%HYD%frState,"MED: frHyd",rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call MedState_LogWrite(is%wrap%HYD%toState,"MED: toHyd",rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      ! Log DistGrid
+      call MedDistGrid_LogWrite(is%wrap%LND%frState,"MED: frLnd",rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call MedDistGrid_LogWrite(is%wrap%HYD%frState,"MED: frHyd",rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     ! Read Remapping Settings
     call ESMF_AttributeGet(mediator, name="RemapLND", value=attValue, &
@@ -680,13 +975,13 @@ module Mediator
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    remapDstLND = attValue
+    is%wrap%remapDstLND = attValue
     call ESMF_AttributeGet(mediator, name="RemapHYD", value=attValue, &
       defaultValue="FLD_REMAP_REDIST", convention="NUOPC", purpose="Instance", &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    remapDstHYD = attValue
+    is%wrap%remapDstHYD = attValue
 
     ! Read Mask Settings
     call ESMF_AttributeGet(mediator, name="MaskFrLND", value=attValue, &
@@ -694,35 +989,35 @@ module Mediator
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    maskFrLND = attValue
+    is%wrap%maskFrLND = attValue
     call ESMF_AttributeGet(mediator, name="MaskToLND", value=attValue, &
       defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    maskToLND = attValue
+    is%wrap%maskToLND = attValue
     call ESMF_AttributeGet(mediator, name="MaskFrHYD", value=attValue, &
       defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    maskFrHYD = attValue
+    is%wrap%maskFrHYD = attValue
     call ESMF_AttributeGet(mediator, name="MaskToHYD", value=attValue, &
       defaultValue="FLD_MASK_NNE", convention="NUOPC", purpose="Instance", &
       rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    maskToHYD = attValue
+    is%wrap%maskToHYD = attValue
 
     ! Compute RHs
-    call med_compute_rh(srcCmpList=(/LND/), dstCmp=HYD, conn=toHyd, &
-      label="MED: toHYD", mapping=remapDstHYD, &
-      srcMask=maskFrLND, dstMask=maskToHYD, rc=rc)
+    call med_compute_rh(srcCmpList=(/is%wrap%LND/), dstCmp=is%wrap%HYD, &
+      conn=is%wrap%toHyd, label="MED: toHYD", mapping=is%wrap%remapDstHYD, &
+      srcMask=is%wrap%maskFrLND, dstMask=is%wrap%maskToHYD, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_compute_rh(srcCmpList=(/HYD/), dstCmp=LND, conn=toLND, &
-      label="MED: toLND", mapping=remapDstLND, &
-      srcMask=maskFrHYD, dstMask=maskToLND, rc=rc)
+    call med_compute_rh(srcCmpList=(/is%wrap%HYD/), dstCmp=is%wrap%LND, &
+      conn=is%wrap%toLND, label="MED: toLND", mapping=is%wrap%remapDstLND, &
+      srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -982,7 +1277,7 @@ module Mediator
       character(len=24) :: remapStr
       character(len=24) :: srcMaskStr
       character(len=24) :: dstMaskStr
-      character(len=124) :: msg
+      character(ESMF_MAXSTR) :: msg
       integer :: stat
 
       rc = ESMF_SUCCESS
@@ -1040,16 +1335,16 @@ module Mediator
         endif
       enddo
 
-#if 1
-      remapStr = mapping
-      srcMaskStr = srcMask
-      dstMaskStr = dstMask
-      write (msg,"(A10,3(A,A))") label, " remapping= ",trim(remapStr), &
-        " srcMask=", trim(srcMaskStr), " dstMask=", trim(dstMaskStr)
-      call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-#endif
+      if (btest(verbosity,16)) then
+        remapStr = mapping
+        srcMaskStr = srcMask
+        dstMaskStr = dstMask
+        write (msg,"(A10,3(A,A))") label, " remapping= ",trim(remapStr), &
+          " srcMask=", trim(srcMaskStr), " dstMask=", trim(dstMaskStr)
+        call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
 
       if (mapping .eq. FLD_REMAP_BILINR) then
         if (srcMask .eq. FLD_MASK_NNE) then
@@ -1138,16 +1433,101 @@ module Mediator
   subroutine DataInitialize(mediator, rc)
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
+    ! local variables
+    character(len=40)         :: name
+    character(*), parameter   :: rName="DataInitialize"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    call DataReset(toHYD, rc=rc)
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call DataReset(toLND, rc=rc)
+    ! query the Mediator for clocks
+    call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call MedConn_DataReset(is%wrap%toHYD, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call MedConn_DataReset(is%wrap%toLND, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! write src field bundle
+    if (btest(diagnostic,16)) then
+      call ESMF_FieldBundleWrite(is%wrap%toLND%srcFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_FieldBundleWrite(is%wrap%toHYD%srcFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_FieldBundleWrite(is%wrap%toLND%dstFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_FieldBundleWrite(is%wrap%toHYD%dstFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     ! indicate that data initialization is complete (breaking out of init-loop)
     call NUOPC_CompAttributeSet(mediator, &
@@ -1164,16 +1544,64 @@ module Mediator
     integer, intent(out) :: rc
 
     ! local variables
-    type(ESMF_Clock)           :: mediatorClock, driverClock
+    character(ESMF_MAXSTR)     :: name
+    character(*), parameter    :: rName="SetRunClock"
+    type(type_InternalState)   :: is
+    character(len=40)          :: value
+    integer                    :: verbosity, diagnostic
     type(ESMF_Time)            :: currTime
+    character(len=40)          :: currTimeString
+    type(ESMF_Clock)           :: mediatorClock, driverClock
     type(ESMF_TimeInterval)    :: timeStep
-    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock)'
 
     rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! query the Mediator for clocks
     call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, &
       driverClock=driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1197,8 +1625,65 @@ module Mediator
   subroutine MediatorAdvance(mediator, rc)
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
+    ! local variables
+    character(len=40)         :: name
+    character(*), parameter   :: rName="MediatorAdvance"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! query the Mediator for clocks
+    call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     call MediatorPrepLND(mediator, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1216,26 +1701,86 @@ module Mediator
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
     ! local variables
-    type(ESMF_Clock) :: clock
+    character(len=40)         :: name
+    character(*), parameter   :: rName="MediatorPrepLND"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for its clock, importState and exportState
-    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    ! query the Component for its clock, importState and exportState
+    call ESMF_GridCompGet(mediator, clock=mediatorClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! write src field bundle
+    if (btest(diagnostic,16)) then
+      call ESMF_FieldBundleWrite(is%wrap%toLND%srcFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
-    if (remapDstLND .eq. FLD_REMAP_BILINR) then
-      call ESMF_FieldBundleRegrid(toLND%srcFB, toLND%dstFB, &
-        routehandle=toLND%rhBilnr, &
+    if (is%wrap%remapDstLND .eq. FLD_REMAP_BILINR) then
+      call ESMF_FieldBundleRegrid(is%wrap%toLND%srcFB, is%wrap%toLND%dstFB, &
+        routehandle=is%wrap%toLND%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-    elseif (remapDstLND .eq. FLD_REMAP_REDIST) then
-      call ESMF_FieldBundleRedist(toLND%srcFB, toLND%dstFB, &
-        routehandle=toLND%rhFcopy, rc=rc)
+    elseif (is%wrap%remapDstLND .eq. FLD_REMAP_REDIST) then
+      call ESMF_FieldBundleRedist(is%wrap%toLND%srcFB,is%wrap%toLND%dstFB, &
+        routehandle=is%wrap%toLND%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     else
@@ -1243,6 +1788,16 @@ module Mediator
         msg="Remapping method has not been implemented.", &
         line=__LINE__, file=__FILE__, rcToReturn=rc)
       return
+    endif
+
+    ! write dst field bundle
+    if (btest(diagnostic,16)) then
+      call ESMF_FieldBundleWrite(is%wrap%toLND%dstFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
   end subroutine
@@ -1257,19 +1812,64 @@ module Mediator
     ! Otherwise, it just sets the timestamp to the current clock.
 
     ! local variables
-    integer                 :: n, fieldcount
-    type(ESMF_Clock)        :: driverClock
-    type(ESMF_Clock)        :: clock
-    type(ESMF_time)         :: currtime
+    character(len=40)         :: name
+    character(*), parameter   :: rName="TimestampExport_prepLND"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock, driverClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
+    integer                   :: n, fieldcount
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call NUOPC_MediatorGet(mediator, driverClock=driverClock, rc=rc)
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    ! query the Mediator for clocks
+    call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, &
+      driverClock=driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1277,7 +1877,7 @@ module Mediator
     call ESMF_ClockGet(driverClock, currTime=currTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call ESMF_ClockSet(clock, currTime=currTime, rc=rc)
+    call ESMF_ClockSet(mediatorClock, currTime=currTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1285,9 +1885,12 @@ module Mediator
     ! validate all data by default
     !---------------------------
 
-    call NUOPC_UpdateTimestamp(LND%toState, clock, rc=rc)
+    call NUOPC_UpdateTimestamp(is%wrap%LND%toState, mediatorClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+!    call NUOPC_SetTimestamp(is%wrap%LND%toState, clock, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
 
   end subroutine
 
@@ -1297,26 +1900,86 @@ module Mediator
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
     ! local variables
-    type(ESMF_Clock) :: clock
+    character(len=40)         :: name
+    character(*), parameter   :: rName="MediatorPrepHYD"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for its clock
-    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    ! query the Component for its clock
+    call ESMF_GridCompGet(mediator, clock=mediatorClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! write src field bundle
+    if (btest(diagnostic,16)) then
+      call ESMF_FieldBundleWrite(is%wrap%toHYD%srcFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
-    if (remapDstHYD .eq. FLD_REMAP_BILINR) then
-      call ESMF_FieldBundleRegrid(toHYD%srcFB, toHYD%dstFB, &
-        routehandle=toHYD%rhBilnr, &
+    if (is%wrap%remapDstHYD .eq. FLD_REMAP_BILINR) then
+      call ESMF_FieldBundleRegrid(is%wrap%toHYD%srcFB, is%wrap%toHYD%dstFB, &
+        routehandle=is%wrap%toHYD%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-    elseif (remapDstHYD .eq. FLD_REMAP_REDIST) then
-      call ESMF_FieldBundleRedist(toHYD%srcFB, toHYD%dstFB, &
-        routehandle=toHYD%rhFcopy, rc=rc)
+    elseif (is%wrap%remapDstHYD .eq. FLD_REMAP_REDIST) then
+      call ESMF_FieldBundleRedist(is%wrap%toHYD%srcFB, is%wrap%toHYD%dstFB, &
+        routehandle=is%wrap%toHYD%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     else
@@ -1324,6 +1987,16 @@ module Mediator
         msg="Remapping method has not been implemented.", &
         line=__LINE__, file=__FILE__, rcToReturn=rc)
       return
+    endif
+
+    ! write src field bundle
+    if (btest(diagnostic,16)) then
+      call ESMF_FieldBundleWrite(is%wrap%toHYD%dstFB, fileName="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
+        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
   end subroutine
@@ -1338,19 +2011,64 @@ module Mediator
     ! Otherwise, it just sets the timestamp to the current clock.
 
     ! local variables
-    integer                 :: n, fieldcount
-    type(ESMF_Clock)        :: driverClock
-    type(ESMF_Clock)        :: clock
-    type(ESMF_time)         :: currtime
+    character(len=40)         :: name
+    character(*), parameter   :: rName="TimestampExport_prepHYD"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock, driverClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
+    integer                   :: n, fieldcount
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call NUOPC_MediatorGet(mediator, driverClock=driverClock, rc=rc)
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call ESMF_GridCompGet(mediator, clock=clock, rc=rc)
+    ! query the Mediator for clocks
+    call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, &
+      driverClock=driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap) 
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1358,7 +2076,7 @@ module Mediator
     call ESMF_ClockGet(driverClock, currTime=currTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call ESMF_ClockSet(clock, currTime=currTime, rc=rc)
+    call ESMF_ClockSet(mediatorClock, currTime=currTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1366,15 +2084,93 @@ module Mediator
     ! validate all data by default
     !---------------------------
 
-    call NUOPC_UpdateTimestamp(HYD%toState, clock, rc=rc)
+    call NUOPC_UpdateTimestamp(is%wrap%HYD%toState, mediatorClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+!    call NUOPC_SetTimestamp(is%wrap%HYD%toState, clock, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
 
   end subroutine
 
   !-----------------------------------------------------------------------------
 
-  subroutine DataReset(toComp, rc)
+  subroutine MediatorFinalize(mediator, rc)
+    type(ESMF_GridComp)  :: mediator
+    integer, intent(out) :: rc
+    ! local variables
+    character(len=40)         :: name
+    character(*), parameter   :: rName="MediatorFinalize"
+    type(type_InternalState)  :: is
+    character(len=40)         :: value
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Clock)          :: mediatorClock
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
+    integer                   :: stat
+
+    rc = ESMF_SUCCESS
+
+    ! get the component information
+!    call NUOPC_CompGet(mediator, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(mediator, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","debug"/), &
+      specialValueList=(/0,65535,65536/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! query the Mediator for clocks
+    call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! prepare diagnostic values
+    if (verbosity>0 .OR. diagnostic>0) then
+      call ESMF_ClockGet(mediatorClock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(currTime, timeStringISOFrac=currTimeString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! query component for the internal state
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(mediator, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! deallocate internal state
+    deallocate(is%wrap, stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of internal state memory failed.", &
+      line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+      return  ! bail out
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine MedConn_DataReset(toComp, rc)
     type(med_uni_conn_type) :: toComp
     integer, intent(out) :: rc
     ! local variables
@@ -1409,7 +2205,7 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
-  subroutine med_log_state(state,label,rc)
+  subroutine MedState_LogWrite(state,label,rc)
     type(ESMF_State),intent(in)  :: state
     character(len=*),intent(in)  :: label
     integer,intent(out)          :: rc
@@ -1418,7 +2214,7 @@ module Mediator
     integer                               :: itemCount
     character(len=64), allocatable        :: itemNameList(:)
     integer                               :: iIndex
-    character(len=80)                     :: logMsg
+    character(ESMF_MAXSTR)                :: msg
 
     rc = ESMF_SUCCESS
 
@@ -1441,9 +2237,9 @@ module Mediator
 
     if (itemCount .gt. 0) then
       do iIndex=1, itemCount
-        write (logMsg,"(A10,A1,I2.2,A2,A20)") label, &
+        write (msg,"(A10,A1,I2.2,A2,A20)") label, &
           "(",iIndex,") ", itemNameList(iIndex)
-          call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+          call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
       enddo
       deallocate(itemNameList,stat=stat)
       if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
@@ -1452,15 +2248,15 @@ module Mediator
         rcToReturn=rc)) &
         return ! bail out
     else
-      write (logMsg,"(A10,A16)") label," state is empty."
-      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+      write (msg,"(A10,A16)") label," state is empty."
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
     endif
 
   end subroutine
 
   !-----------------------------------------------------------------------------
 
-  subroutine med_log_distgrid(state,label,rc)
+  subroutine MedDistGrid_LogWrite(state,label,rc)
     type(ESMF_State),intent(in)  :: state
     character(len=*),intent(in)  :: label
     integer,intent(out)          :: rc
@@ -1471,7 +2267,7 @@ module Mediator
     type(ESMF_StateItem_Flag),allocatable :: itemTypeList(:)
     integer                               :: iIndex
     character(len=40)                     :: indexStr
-    character(len=80)                     :: logMsg
+    character(ESMF_MAXSTR)                :: msg
     logical                               :: fieldFound
     type(ESMF_Field)                      :: field
     type(ESMF_Grid)                       :: grid
@@ -1530,8 +2326,8 @@ module Mediator
         rcToReturn=rc)) &
         return ! bail out
     else
-      write (logMsg,"(A10,A16)") label," state is empty."
-      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+      write (msg,"(A10,A16)") label," state is empty."
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
     endif
 
     if (fieldFound) then
@@ -1560,12 +2356,12 @@ module Mediator
         LEN_TRIM(ADJUSTL(lenDim))
       write (lenIndex,"(A1,I0,A1,I0)") "I",LEN_TRIM(ADJUSTL(lenIndex)),".", &
         LEN_TRIM(ADJUSTL(lenIndex))
-      write (logMsg,"(A10,A21,"//trim(lenDim)//")") label, &
+      write (msg,"(A10,A21,"//trim(lenDim)//")") label, &
         " distgrid dimensions ",dimCount
-      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
-      write (logMsg,"(A10,A18,"//trim(lenDe)//")") label, &
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
+      write (msg,"(A10,A18,"//trim(lenDe)//")") label, &
         " distgrid decount ",deCount
-      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
       do deIndex=1,deCount
         write (indexStr,"(2(A1,"//trim(lenIndex)//"))") "(", &
           minIndexPDe(1,deIndex), ":", maxIndexPDe(1,deIndex)
@@ -1580,9 +2376,9 @@ module Mediator
           endif
         enddo
         write (indexStr,"(A,A1)") trim(indexStr),")"
-        write (logMsg,"(A10,A15,"//trim(lenDe)//",A2,A)") label, &
+        write (msg,"(A10,A15,"//trim(lenDe)//",A2,A)") label, &
           " distgrid DE(",deIndex,") = ",trim(indexStr)
-        call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+        call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
       enddo
       deallocate(minIndexPDe, maxIndexPDe,stat=stat)
       if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
@@ -1591,8 +2387,8 @@ module Mediator
         rcToReturn=rc)) &
         return ! bail out
     else
-      write (logMsg,"(A10,A20)") label," no fields in state."
-      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+      write (msg,"(A10,A20)") label," no fields in state."
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
     endif
 
   end subroutine

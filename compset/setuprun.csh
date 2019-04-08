@@ -10,6 +10,7 @@ set DIR_RUNCFG="runconfig"
 set DIR_RUNSCP="runscripts"
 
 # Set System Specific Values
+set HOSTNAME=`hostname | sed 's/[0-9]*$//g'`
 if ($HOSTNAME =~ *cheyenne*) then
     set DATA_ROOT="/glade/p/ral/hap/drosen/projects/LISHydro/data"
     set BATCH_SYS="qsub"
@@ -86,7 +87,6 @@ if (! -f $LISHYDRO_RUNCONFIG) then
 endif
 
 # Set LISHYDRO_RUNSCRIPT template file
-set HOSTNAME=`hostname | sed 's/[0-9]*$//g'`
 set LISHYDRO_RUNSCRIPT="./$DIR_RUNSCP/run.csh.$HOSTNAME"
 if (! -f $LISHYDRO_RUNSCRIPT) then
     echo "ERROR: LISHYDRO_RUNSCRIPT file is missing [$LISHYDRO_RUNSCRIPT]"
@@ -156,6 +156,7 @@ if ($RUNCONFIG =~ *lnd*) then
     ln -s $DATA_LND/LIS_RSTRT $RUNDIR/LIS_RSTRT
     ln -s $DATA_LND/LIS_FORCING $RUNDIR/LIS_FORCING
     ln -s $DATA_LND/NOAH33_PARMS $RUNDIR/NOAH33_PARMS
+    ln -s $DATA_LND/NOAHMP36_PARMS $RUNDIR/NOAHMP36_PARMS
   else
     echo "ERROR: DATA_LND directory not found [$DATA_LND]"
     exit 1

@@ -24,6 +24,17 @@ module Mediator
 
   private
 
+  type dataIniType
+    sequence
+    private
+      integer :: initype
+  end type
+
+  type(dataIniType), parameter ::      &
+    INIT_ERROR    = dataIniType(-1), &
+    INIT_DEFAULTS = dataIniType(0),  &
+    INIT_MODELS   = dataIniType(1)
+
   type med_ext_conn_type
     type(ESMF_State)                :: frState
     type(ESMF_State)                :: toState
@@ -72,6 +83,15 @@ module Mediator
   type(ESMF_Clock)   :: clock_invalidTimeStamp
 
   public SetServices
+
+  interface operator (==)
+    module procedure dataIniType_eq
+  end interface
+
+  interface assignment (=)
+    module procedure dataIniType_tostring
+    module procedure dataIniType_frstring
+  end interface
 
   !-----------------------------------------------------------------------------
   contains
@@ -136,28 +156,28 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_Advance, &
-      specPhaseLabel="prepLND", specRoutine=MediatorPrepLND, rc=rc)
+      specPhaseLabel="prepLND", specRoutine=MediatorRemapToLnd, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_TimestampExport, &
       specPhaseLabel="prepLND", &
-      specRoutine=TimestampExport_prepLND, rc=rc)
+      specRoutine=TimestampExport_remapLnd, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    ! set entry point for Run( phase = prep_hyd ) and specialize
+    ! set entry point for Run( phase = prepHyd ) and specialize
     call NUOPC_CompSetEntryPoint(mediator, ESMF_METHOD_RUN, &
       phaseLabelList=(/"prepHYD"/), &
       userRoutine=mediator_routine_Run, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_Advance, &
-      specPhaseLabel="prepHYD", specRoutine=MediatorPrepHYD, rc=rc)
+      specPhaseLabel="prepHYD", specRoutine=MediatorRemapToHyd, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call NUOPC_CompSpecialize(mediator, specLabel=mediator_label_TimestampExport, &
       specPhaseLabel="prepHYD", &
-      specRoutine=TimestampExport_prepHYD, rc=rc)
+      specRoutine=TimestampExport_remapHyd, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -584,9 +604,7 @@ module Mediator
               call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
                 msg="Cannot fulfill request to provide geom object for "// &
                 trim(itemNameList(item))//" in State "//trim(stateName), &
-                line=__LINE__, &
-                file=__FILE__, &
-                rcToReturn=rc)
+                line=__LINE__, file=__FILE__, rcToReturn=rc)
               return ! bail out
             endif
           endif
@@ -1454,14 +1472,23 @@ module Mediator
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
     ! local variables
-    character(len=40)         :: name
-    character(*), parameter   :: rName="DataInitialize"
-    type(type_InternalState)  :: is
-    character(len=40)         :: value
-    integer                   :: verbosity, diagnostic
-    type(ESMF_Clock)          :: mediatorClock
-    type(ESMF_Time)           :: currTime
-    character(len=40)         :: currTimeString
+    character(len=40)            :: name
+    character(*), parameter      :: rName="DataInitialize"
+    type(type_InternalState)     :: is
+    character(len=40)            :: value
+    integer                      :: verbosity, diagnostic
+    type(dataIniType)            :: iniType
+    logical                      :: isCurrent
+    logical                      :: allSatisfied
+    logical                      :: checkSatisfied
+    integer                      :: i
+    integer                      :: fieldCount
+    type(ESMF_Field),allocatable :: fieldList(:)
+    type(ESMF_Clock)             :: mediatorClock
+    type(ESMF_Time)              :: currTime
+    character(len=40)            :: currTimeString
+    character(ESMF_MAXSTR)       :: msg
+    integer                      :: stat
 
     rc = ESMF_SUCCESS
 
@@ -1473,8 +1500,8 @@ module Mediator
     call ESMF_GridCompGet(mediator, name=name, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, defaultValue="0", &
-      convention="NUOPC", purpose="Instance", rc=rc)
+    call ESMF_AttributeGet(mediator, name="Diagnostic", value=value, &
+      defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     diagnostic = ESMF_UtilString2Int(value, &
@@ -1482,8 +1509,8 @@ module Mediator
       specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, defaultValue="0", &
-      convention="NUOPC", purpose="Instance", rc=rc)
+    call ESMF_AttributeGet(mediator, name="Verbosity", value=value, &
+      defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     verbosity = ESMF_UtilString2Int(value, &
@@ -1491,6 +1518,12 @@ module Mediator
       specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_AttributeGet(mediator, name="DataInitialization", &
+      value=value, defaultValue="INIT_DEFAULTS", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    iniType = value
 
     ! query the Mediator for clocks
     call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, rc=rc)
@@ -1513,51 +1546,213 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call MedConn_DataReset(is%wrap%toHYD, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (iniType == INIT_MODELS) then
+      allSatisfied=.TRUE.
 
-    call MedConn_DataReset(is%wrap%toLND, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+      ! Check toLnd Data
+      checkSatisfied = .TRUE.
+      call ESMF_FieldBundleGet(is%wrap%toLND%srcFB, &
+        fieldCount=fieldCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      allocate(fieldList(fieldCount), stat=stat)
+      if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+        msg="Allocation of field list memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+      call ESMF_FieldBundleGet(is%wrap%toLND%srcFB, &
+        fieldList=fieldList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      do i=1, fieldCount
+        isCurrent = NUOPC_IsAtTime(fieldList(i), currTime, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        if (.NOT.isCurrent) then
+          if (verbosity>0) then
+            write (msg,"(A,A)")  trim(name), &
+              ": toLND DataInitialization-Dependency NOT YET SATISFIED!!!"
+            call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          endif
+          checkSatisfied = .FALSE.
+          exit
+        endif
+      enddo
+      deallocate(fieldList, stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of field list memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+      if (checkSatisfied) then
+        if (verbosity>0) then
+          write (msg,"(A,A)")  trim(name), &
+            ": toLND DataInitialization-Dependency SATISFIED!!!"
+          call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        endif
+        call MediatorRemapToLnd(mediator, rc=rc) ! Remap toLND
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldBundleGet(is%wrap%toLND%dstFB, &
+          fieldCount=fieldCount, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        allocate(fieldList(fieldCount), stat=stat)
+        if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+          msg="Allocation of field list memory failed.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+        call ESMF_FieldBundleGet(is%wrap%toLND%dstFB, &
+          fieldList=fieldList, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        do i=1, fieldCount
+          call NUOPC_SetAttribute(fieldList(i), name="Updated", &
+          value="true", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        enddo
+        deallocate(fieldList, stat=stat)
+        if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+          msg="Deallocation of field list memory failed.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+      else ! if .NOT. checkSatisfied
+        allSatisfied = .FALSE.
+      endif
 
-    ! write src field bundle
-    if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toLND%srcFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      ! Check toHyd Data
+      checkSatisfied = .TRUE.
+      call ESMF_FieldBundleGet(is%wrap%toHYD%srcFB, &
+        fieldCount=fieldCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      call ESMF_FieldBundleWrite(is%wrap%toHYD%srcFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      allocate(fieldList(fieldCount), stat=stat)
+      if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+        msg="Allocation of field list memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+      call ESMF_FieldBundleGet(is%wrap%toHYD%srcFB, &
+        fieldList=fieldList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      call ESMF_FieldBundleWrite(is%wrap%toLND%dstFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      do i=1, fieldCount
+        isCurrent = NUOPC_IsAtTime(fieldList(i), currTime, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        if (.NOT.isCurrent) then
+          if (verbosity>0) then
+            write (msg,"(A,A)")  trim(name), &
+              ": toHYD DataInitialization-Dependency NOT YET SATISFIED!!!"
+            call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          endif
+          checkSatisfied = .FALSE.
+          exit
+        endif
+      enddo
+      deallocate(fieldList, stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of field list memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+      if (checkSatisfied) then
+        if (verbosity>0) then
+          write (msg,"(A,A)")  trim(name), &
+            ": toHYD DataInitialization-Dependency SATISFIED!!!"
+          call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        endif
+        call MediatorRemapToHyd(mediator, rc=rc) ! Remap toHYD
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldBundleGet(is%wrap%toHYD%dstFB, &
+          fieldCount=fieldCount, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        allocate(fieldList(fieldCount), stat=stat)
+        if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+          msg="Allocation of field list memory failed.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+        call ESMF_FieldBundleGet(is%wrap%toHYD%dstFB, &
+          fieldList=fieldList, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        do i=1, fieldCount
+          call NUOPC_SetAttribute(fieldList(i), name="Updated", &
+            value="true", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        enddo
+        deallocate(fieldList, stat=stat)
+        if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+          msg="Deallocation of field list memory failed.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
+      else ! if .NOT. checkSatisfied
+        allSatisfied = .FALSE.
+      endif
+    elseif (iniType == INIT_DEFAULTS) then
+      allSatisfied = .TRUE.
+      call MedConn_DataReset(is%wrap%toLND, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      call ESMF_FieldBundleWrite(is%wrap%toHYD%dstFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+      call MedConn_DataReset(is%wrap%toHYD, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+      if (verbosity>0) then
+        write (msg,"(A,A)")  trim(name), &
+          ": Default DataInitialization. Using coldstart values!!!"
+        call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
+    else
+      allSatisfied = .FALSE.
+      write (msg,"(A)") iniType
+      call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+        msg="Unsupported DataInitialization "//trim(msg), &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return ! bail out
     endif
 
-    ! indicate that data initialization is complete (breaking out of init-loop)
-    call NUOPC_CompAttributeSet(mediator, &
-      name="InitializeDataComplete", value="true", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (allSatisfied) then
+      ! write src field bundle
+      if (btest(diagnostic,16)) then
+        call ESMF_FieldBundleWrite(is%wrap%toLND%srcFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldBundleWrite(is%wrap%toHYD%srcFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldBundleWrite(is%wrap%toLND%dstFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldBundleWrite(is%wrap%toHYD%dstFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
+
+      ! indicate that data initialization is complete (breaking out of init-loop)
+      call NUOPC_CompAttributeSet(mediator, &
+        name="InitializeDataComplete", value="true", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif ! endif allSatisfied
 
   end subroutine
 
@@ -1709,11 +1904,11 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call MediatorPrepLND(mediator, rc=rc)
+    call MediatorRemapToLnd(mediator, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    call MediatorPrepHYD(mediator, rc=rc)
+    call MediatorRemapToHyd(mediator, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1721,12 +1916,12 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
-  subroutine MediatorPrepLND(mediator, rc)
+  subroutine MediatorRemapToLnd(mediator, rc)
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
     ! local variables
     character(len=40)         :: name
-    character(*), parameter   :: rName="MediatorPrepLND"
+    character(*), parameter   :: rName="MediatorRemapToLnd"
     type(type_InternalState)  :: is
     character(len=40)         :: value
     integer                   :: verbosity, diagnostic
@@ -1830,7 +2025,7 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
-  subroutine TimestampExport_prepLND(mediator, rc)
+  subroutine TimestampExport_remapLnd(mediator, rc)
     type(ESMF_GridComp)   :: mediator
     integer, intent(out)  :: rc
 
@@ -1839,7 +2034,7 @@ module Mediator
 
     ! local variables
     character(len=40)         :: name
-    character(*), parameter   :: rName="TimestampExport_prepLND"
+    character(*), parameter   :: rName="TimestampExport_remapLnd"
     type(type_InternalState)  :: is
     character(len=40)         :: value
     integer                   :: verbosity, diagnostic
@@ -1922,12 +2117,12 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
-  subroutine MediatorPrepHYD(mediator, rc)
+  subroutine MediatorRemapToHyd(mediator, rc)
     type(ESMF_GridComp)  :: mediator
     integer, intent(out) :: rc
     ! local variables
     character(len=40)         :: name
-    character(*), parameter   :: rName="MediatorPrepHYD"
+    character(*), parameter   :: rName="MediatorRemapToHyd"
     type(type_InternalState)  :: is
     character(len=40)         :: value
     integer                   :: verbosity, diagnostic
@@ -2031,7 +2226,7 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
-  subroutine TimestampExport_prepHYD(mediator, rc)
+  subroutine TimestampExport_remapHyd(mediator, rc)
     type(ESMF_GridComp)   :: mediator
     integer, intent(out)  :: rc
 
@@ -2040,7 +2235,7 @@ module Mediator
 
     ! local variables
     character(len=40)         :: name
-    character(*), parameter   :: rName="TimestampExport_prepHYD"
+    character(*), parameter   :: rName="TimestampExport_remapHyd"
     type(type_InternalState)  :: is
     character(len=40)         :: value
     integer                   :: verbosity, diagnostic
@@ -2419,6 +2614,42 @@ module Mediator
       call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO)
     endif
 
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  function dataIniType_eq(type1, type2)
+    logical dataIniType_eq
+    type(dataIniType), intent(in) :: type1, type2
+    dataIniType_eq = (type1%initype == type2%initype)
+  end function
+
+  !-----------------------------------------------------------------------------
+
+  subroutine dataIniType_tostring(string, tval)
+    character(len=*), intent(out) :: string
+    type(dataIniType), intent(in) :: tval
+    if (tval == INIT_DEFAULTS) then
+      string = 'INIT_DEFAULTS'
+    elseif (tval == INIT_MODELS) then
+      string = 'INIT_MODELS'
+    else
+      string = 'INIT_ERROR'
+    endif
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine dataIniType_frstring(tval, string)
+    type(dataIniType), intent(out) :: tval
+    character(len=*), intent(in)   :: string
+    if (string .eq. 'INIT_DEFAULTS') then
+      tval = INIT_DEFAULTS
+    elseif (string .eq.'INIT_MODELS') then
+      tval = INIT_MODELS
+    else
+      tval = INIT_ERROR
+    endif
   end subroutine
 
   !-----------------------------------------------------------------------------

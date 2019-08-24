@@ -1,8 +1,8 @@
 [submodule "src/wrf_hydro_nwm"]
 	path = src/wrf_hydro_nwm
 	url = git@github.com:NESII/wrf_hydro_nwm_public.git
-	branch = v5.0.0_NUOPC
+	branch = feature/NUOPC
 [submodule "src/LISF"]
 	path = src/LISF
 	url = git@github.com:NESII/LISF.git
-	branch = NUOPC-dev
+	branch = feature/NUOPC

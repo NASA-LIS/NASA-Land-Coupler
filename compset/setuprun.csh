@@ -178,6 +178,7 @@ foreach setting (${settings})
       continue
     else
       set value=`eval echo \$$envvar`
+      set value=`echo $value | sed 's/[\/&]/\\\\&/g'`
       sed -i "s/$setting/$value/g" $RUNDIR/lishydro.runconfig
     endif
 end

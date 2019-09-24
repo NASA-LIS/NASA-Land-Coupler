@@ -1067,6 +1067,7 @@ module Mediator
       type(ESMF_State)  :: state
       integer, optional :: rc
       ! local variables
+      logical                                 :: isPresent
       integer                                 :: itemCount, item, stat
       type(ESMF_Field)                        :: field
       type(ESMF_FieldStatus_Flag)             :: fieldStatus
@@ -1106,9 +1107,18 @@ module Mediator
             ! deal with gridToFieldMap
             call ESMF_AttributeGet(field, name="GridToFieldMap", &
               convention="NUOPC", purpose="Instance", &
-              itemCount=itemCount, rc=rc)
+              isPresent=isPresent, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=__FILE__)) return  ! bail out
+            if (isPresent) then
+              call ESMF_AttributeGet(field, name="GridToFieldMap", &
+                convention="NUOPC", purpose="Instance", &
+                itemCount=itemCount, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+            else
+              itemCount = 0
+            endif
             if (itemCount > 0) then
               allocate(gridToFieldMap(itemCount))
               call ESMF_AttributeGet(field, name="GridToFieldMap", &
@@ -1120,9 +1130,18 @@ module Mediator
             ! deal with ungriddedLBound
             call ESMF_AttributeGet(field, name="UngriddedLBound", &
               convention="NUOPC", purpose="Instance", &
-              itemCount=itemCount, rc=rc)
+              isPresent=isPresent, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=__FILE__)) return  ! bail out
+            if (isPresent) then
+              call ESMF_AttributeGet(field, name="UngriddedLBound", &
+                convention="NUOPC", purpose="Instance", &
+                itemCount=itemCount, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+            else
+              itemCount = 0
+            endif
             if (itemCount > 0) then
               allocate(ugLBound(itemCount))
               call ESMF_AttributeGet(field, name="UngriddedLBound", &
@@ -1134,9 +1153,18 @@ module Mediator
             ! deal with ungriddedUBound
             call ESMF_AttributeGet(field, name="UngriddedUBound", &
               convention="NUOPC", purpose="Instance", &
-              itemCount=itemCount, rc=rc)
+              isPresent=isPresent, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=__FILE__)) return  ! bail out
+            if (isPresent) then
+              call ESMF_AttributeGet(field, name="UngriddedUBound", &
+                convention="NUOPC", purpose="Instance", &
+                itemCount=itemCount, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+            else
+              itemCount = 0
+            endif
             if (itemCount > 0) then
               allocate(ugUBound(itemCount))
               call ESMF_AttributeGet(field, name="UngriddedUBound", &
@@ -1193,7 +1221,7 @@ module Mediator
         itemCount=itemCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      allocate(tmpFlds(itemCount))
+      allocate(tmpFlds(itemCount), stat=stat)
       if (ESMF_LogFoundAllocError(statusToCheck=stat, &
         msg="Allocation of field list memory failed.", &
         line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
@@ -1245,7 +1273,7 @@ module Mediator
         itemCount=itemCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      allocate(tmpFlds(itemCount))
+      allocate(tmpFlds(itemCount), stat=stat)
       if (ESMF_LogFoundAllocError(statusToCheck=stat, &
         msg="Allocation of field list memory failed.", &
         file=__FILE__, &
@@ -2109,7 +2137,7 @@ module Mediator
     call NUOPC_UpdateTimestamp(is%wrap%LND%toState, mediatorClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-!    call NUOPC_SetTimestamp(is%wrap%LND%toState, clock, rc=rc)
+!    call NUOPC_SetTimestamp(is%wrap%LND%toState, mediatorClock, rc=rc)
 !    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
 !      line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -2310,7 +2338,7 @@ module Mediator
     call NUOPC_UpdateTimestamp(is%wrap%HYD%toState, mediatorClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-!    call NUOPC_SetTimestamp(is%wrap%HYD%toState, clock, rc=rc)
+!    call NUOPC_SetTimestamp(is%wrap%HYD%toState, mediatorClock, rc=rc)
 !    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
 !      line=__LINE__, file=__FILE__)) return  ! bail out
 

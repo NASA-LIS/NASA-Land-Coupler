@@ -34,18 +34,28 @@ driverAttributes::
 ::
 
 lndAttributes::
-  Verbosity = high
+  Verbosity = 1
+  Diagnostic = 0
   Profiling = 0
-  debug_interval = 0
+  realize_all_export = false
+  config_file = lis.config
   nest_to_nest = false
-  write_grid = true
+  import_dependency = false
+  output_directory = LND_OUTPUT
 ::
 
 hydAttributes::
-  Verbosity = high
+  Verbosity = 1
+  Diagnostic = 0
   Profiling = 0
-  forcings_directory = "WRFHYDRO_FORCING"
-  debug_interval = 0
+  realize_all_export = false
+  config_file = hydro.namelist
+  das_config_file = namelist.hrldas
+  time_step = 0
+  forcings_directory = __FORCINGDIRHYD__
+  domain_id = 1
   nest_to_nest = false
-  write_grid = true
+  import_dependency = false
+  output_directory = HYD_OUTPUT
 ::
+

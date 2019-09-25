@@ -459,6 +459,8 @@ module ESM
     type(ESMF_CplComp), pointer     :: connectorList(:)
     integer                         :: i, j, cplListSize
     character(len=256)              :: msg
+    character(len=40)               :: value
+    integer                         :: verbosity, diagnostic
     character(len=32)               :: connectorName
     character(len=160), allocatable :: cplList(:)
     integer                         :: splitPos
@@ -478,10 +480,33 @@ module ESM
     do i=1, size(connectorList)
       nullify(dstFlds)
       nullify(srcFlds)
-      ! query the name for connector i
+      ! get connector information
+!      call NUOPC_CompGet(connectorList(i), name=connectorName, verbosity=verbosity, &
+!        diagnostic=diagnostic, rc=rc)
+!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!        line=__LINE__, file=__FILE__)) return  ! bail out
       call ESMF_CplCompGet(connectorList(i), name=connectorName, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_AttributeGet(connectorList(i), name="Diagnostic", value=value, &
+        defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      diagnostic = ESMF_UtilString2Int(value, &
+        specialStringList=(/"min","max","debug"/), &
+        specialValueList=(/0,65535,65536/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_AttributeGet(connectorList(i), name="Verbosity", value=value, &
+        defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      verbosity = ESMF_UtilString2Int(value, &
+        specialStringList=(/"min","max","debug"/), &
+        specialValueList=(/0,65535,65536/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
       if (connectorName .eq. "LND-TO-HYD") then
         srcFlds=>fldsFrLnd
         dstFlds=>fldsToHyd
@@ -572,13 +597,13 @@ module ESM
               line=__LINE__, file=__FILE__, rcToReturn=rc)
             return
           endif
-#if 1
-          write (msg,"(A,A,A,I0,A,A)") trim(connectorName),": ", &
-            "CplList(",j,")=",trim(cplList(j))
-          call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=__FILE__)) return  ! bail out
-#endif
+          if (verbosity>0) then
+            write (msg,"(A,A,A,I0,A,A)") trim(connectorName),": ", &
+              "CplList(",j,")=",trim(cplList(j))
+            call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          endif
         enddo
 
         ! store the modified cplList in CplList attribute of connector i

@@ -416,6 +416,12 @@ module Fields
       endif
     enddo
 
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg="Field not found in fieldList "//trim(standardName), &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
   end subroutine
 
   !-----------------------------------------------------------------------------
@@ -449,6 +455,12 @@ module Fields
         return
       endif
     enddo
+
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg="Field not found in fieldList "//trim(stateName), &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
   end subroutine
 

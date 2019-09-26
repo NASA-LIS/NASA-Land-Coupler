@@ -463,7 +463,9 @@ module ESM
     integer                         :: verbosity, diagnostic
     character(len=32)               :: connectorName
     character(len=160), allocatable :: cplList(:)
-    integer                         :: splitPos
+    character(len=160)              :: standardName
+    character(len=160)              :: defaultOpts
+    integer                         :: findPos
     type(med_fld_type), pointer     :: srcFlds(:) => null()
     type(med_fld_type), pointer     :: dstFlds(:) => null()
     type(fieldRemapFlag)            :: fieldDstRemap = FLD_REMAP_REDIST
@@ -506,6 +508,13 @@ module ESM
         specialValueList=(/0,65535,65536/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+      if (verbosity>0) then
+        write (msg,"(A,A,A)") trim(connectorName),": ", &
+          "Modifying CplList"
+        call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
 
       if (connectorName .eq. "LND-TO-HYD") then
         srcFlds=>fldsFrLnd
@@ -540,11 +549,18 @@ module ESM
           line=__LINE__, file=__FILE__)) return  ! bail out
         ! go through all of the entries in the cplList and add options
         do j=1, cplListSize
-          splitPos = index(cplList(j),":")
-          if (splitPos .eq. 0) splitPos = LEN(cplList(j))
+          findPos = index(cplList(j),":")
+          if (findPos .gt. 0) then
+            standardName = cplList(j)(1:findPos-1)
+            defaultOpts = cplList(j)(findPos:LEN(cplList(j)))
+            cplList(j) = trim(standardName)
+          else
+            standardName = trim(cplList(j))
+            defaultOpts = ""
+          endif
           if (associated(srcFlds)) then
             call field_find_standardname(fieldList=srcFlds, &
-              standardName=cplList(j)(1:splitPos), &
+              standardName=standardName, &
               mask=fieldSrcMask, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=__FILE__)) return  ! bail out
@@ -553,7 +569,7 @@ module ESM
           endif
           if (associated(dstFlds)) then
             call field_find_standardname(fieldList=dstFlds, &
-              standardName=cplList(j)(1:splitPos), &
+              standardName=standardName, &
               mapping=fieldDstRemap, mask=fieldDstMask, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=__FILE__)) return  ! bail out
@@ -598,11 +614,25 @@ module ESM
             return
           endif
           if (verbosity>0) then
-            write (msg,"(A,A,A,I0,A,A)") trim(connectorName),": ", &
-              "CplList(",j,")=",trim(cplList(j))
-            call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-              line=__LINE__, file=__FILE__)) return  ! bail out
+            if (findPos .gt. 0) then
+              write (msg,"(A,A,A,I0,A,A)") trim(connectorName),": ", &
+                "CplList(",j,")=",trim(cplList(j))
+              call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+              write (msg,"(A,A,A,I0,A,A,A,A)") trim(connectorName),": ", &
+                "CplList(",j,")=",trim(standardName)," [REMOVED] ", &
+                trim(defaultOpts)
+              call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+            else
+              write (msg,"(A,A,A,I0,A,A)") trim(connectorName),": ", &
+                "CplList(",j,")=",trim(cplList(j))
+              call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+            endif
           endif
         enddo
 

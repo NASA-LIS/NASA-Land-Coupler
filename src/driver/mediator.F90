@@ -1059,6 +1059,14 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    ! Initialize realized fields
+    call MedConn_DataReset(is%wrap%toLND, resetValue=LISHYDRO_INITVAL, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call MedConn_DataReset(is%wrap%toHYD, resetValue=LISHYDRO_INITVAL, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     subroutine realizeWithAcceptedGeom(state, rc)
@@ -2421,8 +2429,9 @@ module Mediator
 
   !-----------------------------------------------------------------------------
 
-  subroutine MedConn_DataReset(toComp, rc)
+  subroutine MedConn_DataReset(toComp, resetValue, rc)
     type(med_uni_conn_type) :: toComp
+    real(ESMF_KIND_R8), intent(in), optional :: resetValue
     integer, intent(out) :: rc
     ! local variables
     integer :: i
@@ -2430,27 +2439,50 @@ module Mediator
 
     rc = ESMF_SUCCESS
 
-    do i=1, size(toComp%srcFlds)
-      call ESMF_FieldBundleGet(toComp%srcFB, toComp%srcFlds(i)%stateName, &
-        field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-      call ESMF_FieldFill(field, dataFillScheme="const", &
-        const1=REAL(toComp%srcFlds(i)%fillValue,LISHYDRO_KIND), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-    enddo
+    if (present(resetValue)) then
+      do i=1, size(toComp%srcFlds)
+        call ESMF_FieldBundleGet(toComp%srcFB, toComp%srcFlds(i)%stateName, &
+          field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldFill(field, dataFillScheme="const", &
+          const1=resetValue, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
 
-    do i=1, size(toComp%dstFlds)
-      call ESMF_FieldBundleGet(toComp%dstFB, toComp%dstFlds(i)%stateName, &
-        field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-      call ESMF_FieldFill(field, dataFillScheme="const", &
-        const1=REAL(toComp%dstFlds(i)%fillValue,LISHYDRO_KIND), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-    enddo
+      do i=1, size(toComp%dstFlds)
+        call ESMF_FieldBundleGet(toComp%dstFB, toComp%dstFlds(i)%stateName, &
+          field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldFill(field, dataFillScheme="const", &
+          const1=resetValue, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
+    else
+      do i=1, size(toComp%srcFlds)
+        call ESMF_FieldBundleGet(toComp%srcFB, toComp%srcFlds(i)%stateName, &
+          field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldFill(field, dataFillScheme="const", &
+          const1=REAL(toComp%srcFlds(i)%fillValue,ESMF_KIND_R8), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
+      do i=1, size(toComp%dstFlds)
+        call ESMF_FieldBundleGet(toComp%dstFB, toComp%dstFlds(i)%stateName, &
+          field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldFill(field, dataFillScheme="const", &
+          const1=REAL(toComp%dstFlds(i)%fillValue,ESMF_KIND_R8), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
+    endif
 
   end subroutine
 

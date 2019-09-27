@@ -36,3 +36,6 @@
 #define LISHYDRO_CONFIG       "lishydro.runconfig"
 #endif
 
+#ifndef LISHYDRO_INITVAL
+#define LISHYDRO_INITVAL      999999999.0D0
+#endif

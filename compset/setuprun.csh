@@ -133,13 +133,28 @@ mkdir -p $RUNDIR
 if ($RUNCONFIG =~ *hyd*) then
   set DATA_HYD=$DATA_ROOT/WRFHydro/$COMPSET
   if (-d $DATA_HYD) then
-    cp $DATA_HYD/namelist.hrldas $RUNDIR
-    cp $DATA_HYD/hydro.namelist  $RUNDIR
-    cp $DATA_HYD/WRFHYDRO_PARMS/CHANPARM.TBL $RUNDIR
-    ln -sf $DATA_HYD/WRFHYDRO_DOMAIN  $RUNDIR/WRFHYDRO_DOMAIN
-    ln -sf $DATA_HYD/WRFHYDRO_FORCING $RUNDIR/WRFHYDRO_FORCING
-    ln -sf $DATA_HYD/WRFHYDRO_PARMS   $RUNDIR/WRFHYDRO_PARMS
-    ln -sf $DATA_HYD/WRFHYDRO_RESTART $RUNDIR/WRFHYDRO_RESTART
+    set ensemble=`find $DATA_HYD -name 'HYD-*'`
+    foreach data_hyd_member (${ensemble})
+      set member=`basename $data_hyd_member`
+      set rundir_member=$RUNDIR/$member
+      mkdir -p $rundir_member
+      cp $data_hyd_member/namelist.hrldas $rundir_member
+      cp $data_hyd_member/hydro.namelist  $rundir_member
+      cp $data_hyd_member/WRFHYDRO_PARMS/CHANPARM.TBL $rundir_member
+      ln -sf $data_hyd_member/WRFHYDRO_DOMAIN  $rundir_member/WRFHYDRO_DOMAIN
+      ln -sf $data_hyd_member/WRFHYDRO_FORCING $rundir_member/WRFHYDRO_FORCING
+      ln -sf $data_hyd_member/WRFHYDRO_PARMS   $rundir_member/WRFHYDRO_PARMS
+      ln -sf $data_hyd_member/WRFHYDRO_RESTART $rundir_member/WRFHYDRO_RESTART
+    end
+    if ( "$ensemble" == "" ) then
+      cp $DATA_HYD/namelist.hrldas $RUNDIR
+      cp $DATA_HYD/hydro.namelist  $RUNDIR
+      cp $DATA_HYD/WRFHYDRO_PARMS/CHANPARM.TBL $RUNDIR
+      ln -sf $DATA_HYD/WRFHYDRO_DOMAIN  $RUNDIR/WRFHYDRO_DOMAIN
+      ln -sf $DATA_HYD/WRFHYDRO_FORCING $RUNDIR/WRFHYDRO_FORCING
+      ln -sf $DATA_HYD/WRFHYDRO_PARMS   $RUNDIR/WRFHYDRO_PARMS
+      ln -sf $DATA_HYD/WRFHYDRO_RESTART $RUNDIR/WRFHYDRO_RESTART
+    endif
   else
     echo "ERROR: DATA_HYD directory not found [$DATA_HYD]"
     exit 1

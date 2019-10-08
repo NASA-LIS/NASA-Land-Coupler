@@ -86,12 +86,18 @@ module ESM
     type(ESMF_Time)               :: stopTime
     type(ESMF_TimeInterval)       :: timeStep
     type(ESMF_Clock)              :: internalClock
+    integer                       :: i
+    character(6)                  :: maxStr
+    character(3)                  :: instStrFmt
+    character(10)                 :: compName
     type(ESMF_GridComp)           :: child
     type(ESMF_CplComp)            :: connector
     type(ESMF_Config)             :: config
     type(NUOPC_FreeFormat)        :: attrFF
     logical                       :: enabledLnd, enabledHyd, enabledMed
     integer, allocatable          :: petList(:)
+    logical                       :: multiInst
+    integer                       :: instCnt
     integer                       :: dt
 
     rc = ESMF_SUCCESS
@@ -117,7 +123,7 @@ module ESM
     if (enabledLnd) then
 
       ! get PET lists from config
-      call getPetListFromConfig(config, "pets_lnd:", petList, rc=rc)
+      call getPetListFromConfig(config, "pets_lnd:", petList=petList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -156,36 +162,126 @@ module ESM
 
     if (enabledHyd) then
 
-      ! get PET lists from config
-      call getPetListFromConfig(config, "pets_hyd:", petList, rc=rc)
+      ! get instance count from config
+      call ESMF_ConfigGetAttribute(config, instCnt, &
+        label="instance_count_hyd:", default=1, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      ! SetServices for HYD
-      if (allocated(petList)) then
-        call NUOPC_DriverAddComp(driver, "HYD", hydSS, petList=petList, comp=child, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        deallocate(petList)
+      if (instCnt.gt.1) then
+        multiInst = .true.  ! default multi instance .true.
       else
-        call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
+        multiInst = .false. ! default multi instance .false.
+      endif
+      call ESMF_ConfigGetAttribute(config, multiInst, &
+        label="multi_instance_hyd:", default=multiInst, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      if ((.NOT.multiInst) .AND. (instCnt.gt.1)) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg="multi_instance_hyd must be true for instance count gt 1", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      elseif (instCnt.gt.999999) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg="instance_count_hyd must be less than 999999", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+
+      if (multiInst) then
+
+        ! generate the instance string format descriptor
+        write(maxStr,"(I0)") instCnt
+        write(instStrFmt,"(I0,A1,I0)") len_trim(maxStr),".",len_trim(maxStr)
+
+        ! check for overlapping PETs
+        call checkPetListFromConfig(config, "pets_hyd:", rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-      endif
-      call NUOPC_CompAttributeSet(child, name="Verbosity", value="0", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
 
-      ! read HYD attributes from config file into FreeFormat
-      attrFF = NUOPC_FreeFormatCreate(config, label="hydAttributes::", &
-        relaxedflag=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-      call NUOPC_CompAttributeIngest(child, attrFF, addFlag=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-      call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
+        do i=1, instCnt
+
+          write(compName,"(A4,I"//trim(instStrFmt)//")") "HYD-",i
+
+          ! get instance PET lists from config
+          call getPetListFromConfig(config, "pets_hyd:", instance=i, &
+            petList=petList, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          ! SetServices for HYD
+          if (allocated(petList)) then
+            call NUOPC_DriverAddComp(driver, compName, hydSS, petList=petList, &
+              comp=child, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+            deallocate(petList)
+          else
+            call NUOPC_DriverAddComp(driver, compName, hydSS, comp=child, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          endif
+          call NUOPC_CompAttributeSet(child, name="Verbosity", value="0", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          ! read HYD attributes from config file into FreeFormat
+          attrFF = NUOPC_FreeFormatCreate(config, label="hydAttributes::", &
+            relaxedflag=.true., rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call NUOPC_CompAttributeIngest(child, attrFF, addFlag=.true., rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call NUOPC_CompAttributeAdd(child, &
+            attrList=(/"multi_instance_hyd"/), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(child, name="multi_instance_hyd", &
+            value="true", convention="NUOPC", purpose="Instance", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        enddo
+
+      else
+
+        ! get PET lists from config
+        call getPetListFromConfig(config, "pets_hyd:", petList=petList, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+
+        ! SetServices for HYD
+        if (allocated(petList)) then
+          call NUOPC_DriverAddComp(driver, "HYD", hydSS, petList=petList, &
+            comp=child, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          deallocate(petList)
+        else
+          call NUOPC_DriverAddComp(driver, "HYD", hydSS, comp=child, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        endif
+        call NUOPC_CompAttributeSet(child, name="Verbosity", value="0", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+
+        ! read HYD attributes from config file into FreeFormat
+        attrFF = NUOPC_FreeFormatCreate(config, label="hydAttributes::", &
+          relaxedflag=.true., rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call NUOPC_CompAttributeIngest(child, attrFF, addFlag=.true., rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+
+      endif ! multiple instances
 
     endif !enabledHyd
 
@@ -196,7 +292,7 @@ module ESM
     if (enabledMed) then
 
       ! get PET lists from config
-      call getPetListFromConfig(config, "pets_med:", petList, rc=rc)
+      call getPetListFromConfig(config, "pets_med:", petList=petList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -368,44 +464,137 @@ module ESM
 
   end subroutine isComponentEnabled
 
-  subroutine getPetListFromConfig(config, label, petList, rc)
-    type(ESMF_Config), intent(inout) :: config
-    character(len=*), intent(in)  :: label
-    integer, allocatable          :: petList(:)
-    integer, intent(out)          :: rc
+  subroutine getPetListFromConfig(config, label, instance, petList, rc)
+    type(ESMF_Config), intent(inout)    :: config
+    character(len=*), intent(in)        :: label
+    integer, intent(in), optional       :: instance
+    integer, allocatable, intent(inout) :: petList(:)
+    integer, intent(out)                :: rc
 
     ! local
-    logical :: isPresent
-    integer :: i, minPet, maxPet
+    integer              :: l_instance
+    logical              :: isPresent
+    integer              :: attrCnt
+    integer, allocatable :: petBoundsList(:)
+    integer              :: i, minPet, maxPet
+
+    if (present(instance)) then
+      l_instance = instance
+    else
+      l_instance = 1
+    endif
 
     call ESMF_ConfigFindLabel(config, trim(label), &
       isPresent=isPresent, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     if (isPresent) then
-      call ESMF_ConfigGetAttribute(config, minPet, default=-1, rc=rc)
+      attrCnt = ESMF_ConfigGetLen(config, label=trim(label), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      call ESMF_ConfigGetAttribute(config, maxPet, default=-2, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-      if (minPet <= maxPet) then
-        allocate(petList(maxPet-minPet+1), stat=rc)
+      if (attrCnt .ge. (l_instance*2)) then
+        allocate (petBoundsList(attrCnt), stat=rc)
         if (ESMF_LogFoundAllocError(statusToCheck=rc, &
-          msg="Could not allocate petList", &
+          msg="Could not allocate petBoundsList", &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        do i=1, maxPet-minPet+1
-          petList(i) = minPet+i-1
-        enddo
+        call ESMF_ConfigGetAttribute(config, petBoundsList, &
+          label=trim(label), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        minPet = petBoundsList((2*l_instance)-1)
+        maxPet = petBoundsList(2*l_instance)
+        deallocate(petBoundsList, stat=rc)
+        if (ESMF_LogFoundDeallocError(statusToCheck=rc, &
+          msg="Could not deallocate petBoundsList", &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        if (minPet <= maxPet) then
+          allocate(petList(maxPet-minPet+1), stat=rc)
+          do i=1, maxPet-minPet+1
+            petList(i) = minPet+i-1
+          enddo
+        else
+          deallocate (petList, stat=rc)
+          if (ESMF_LogFoundDeallocError(statusToCheck=rc, &
+            msg="Could not deallocate petList", &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg=trim(label)//" min must be <= max", &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return
+        endif
       else
         call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-          msg=trim(label)//" min must be <= max", &
+          msg=trim(label)//" PET bounds missing", &
           line=__LINE__, file=__FILE__, rcToReturn=rc)
         return
       endif
     endif
 
   end subroutine getPetListFromConfig
+
+  subroutine checkPetListFromConfig(config, label, rc)
+    type(ESMF_Config), intent(inout)    :: config
+    character(len=*), intent(in)        :: label
+    integer, intent(out)                :: rc
+
+    ! local
+    logical              :: isPresent
+    integer              :: attrCnt
+    integer, allocatable :: petBoundsList(:)
+    integer              :: i, j
+
+    call ESMF_ConfigFindLabel(config, trim(label), &
+      isPresent=isPresent, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (isPresent) then
+      attrCnt = ESMF_ConfigGetLen(config, label=trim(label), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      if (MOD(attrCnt,2) .eq. 0) then
+        allocate (petBoundsList(attrCnt), stat=rc)
+        if (ESMF_LogFoundAllocError(statusToCheck=rc, &
+          msg="Could not allocate petBoundsList", &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_ConfigGetAttribute(config, petBoundsList, &
+          label=trim(label), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        do i=1, attrCnt, 2
+          if (petBoundsList(i).gt.petBoundsList(i)) then
+            call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+              msg=trim(label)//" min must be <= max", &
+              line=__LINE__, file=__FILE__, rcToReturn=rc)
+            return
+          endif
+          do j=i+2, attrCnt, 2
+            if ((petBoundsList(j).le.petBoundsList(i+1)) .AND. &
+                (petBoundsList(j).ge.petBoundsList(i))) then
+              call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+                msg=trim(label)//" instances have overlapping PETs", &
+                line=__LINE__, file=__FILE__, rcToReturn=rc)
+              return
+            endif
+          enddo
+        enddo
+        deallocate(petBoundsList, stat=rc)
+        if (ESMF_LogFoundDeallocError(statusToCheck=rc, &
+          msg="Could not deallocate petBoundsList", &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      else
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg=trim(label)//" PET bounds missing", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+    else
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg=trim(label)//" PET bounds missing", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return
+    endif
+
+  end subroutine checkPetListFromConfig
 
   subroutine getTimeFromConfig(config, label, tm, rc)
     type(ESMF_Config), intent(inout) :: config

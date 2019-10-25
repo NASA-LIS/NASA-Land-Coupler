@@ -172,6 +172,9 @@ if ($RUNCONFIG =~ *lnd*) then
     ln -s $DATA_LND/LIS_FORCING $RUNDIR/LIS_FORCING
     ln -s $DATA_LND/NOAH33_PARMS $RUNDIR/NOAH33_PARMS
     ln -s $DATA_LND/NOAHMP36_PARMS $RUNDIR/NOAHMP36_PARMS
+    if (-d $DATA_LND/NOAHMP401_PARMS) then
+       ln -s $DATA_LND/NOAHMP401_PARMS $RUNDIR/NOAHMP401_PARMS
+    endif 
   else
     echo "ERROR: DATA_LND directory not found [$DATA_LND]"
     exit 1

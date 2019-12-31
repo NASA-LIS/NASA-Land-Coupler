@@ -651,6 +651,9 @@ module ESM
     character(len=40)               :: value
     integer                         :: verbosity, diagnostic
     character(len=32)               :: connectorName
+    integer                         :: split
+    character(len=16)               :: srcName
+    character(len=16)               :: dstName
     character(len=160), allocatable :: cplList(:)
     character(len=160)              :: standardName
     character(len=160)              :: defaultOpts
@@ -669,8 +672,6 @@ module ESM
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     do i=1, size(connectorList)
-      nullify(dstFlds)
-      nullify(srcFlds)
       ! get connector information
 !      call NUOPC_CompGet(connectorList(i), name=connectorName, verbosity=verbosity, &
 !        diagnostic=diagnostic, rc=rc)
@@ -705,20 +706,47 @@ module ESM
           line=__LINE__, file=__FILE__)) return  ! bail out
       endif
 
-      if (connectorName .eq. "LND-TO-HYD") then
+      split = index(connectorName,"-TO-")
+      if ((split .lt. 2) .OR. (split .ge. (len_trim(connectorName)-3))) then
+        call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+          msg="Invalid connector name: "//trim(connectorName), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+
+      srcName = connectorName(1:split-1)
+      dstName = connectorName(split+4:len_trim(connectorName))
+
+      ! remove ensemble index from srcName
+      split = index(srcName,"-")
+      if (split .gt. 1) then
+        srcName = srcName(1:split-1)
+      endif
+      ! remove ensemble index from dstName
+      split = index(dstName,"-")
+      if (split .gt. 1) then
+        dstName = dstName(1:split-1)
+      endif
+      ! get source field list
+      if (srcName .eq. "LND") then
         srcFlds=>fldsFrLnd
-        dstFlds=>fldsToHyd
-      elseif (connectorName .eq. "HYD-TO-LND") then
+      elseif (srcName .eq. "HYD") then
         srcFlds=>fldsFrHyd
+      elseif (srcName .eq. "MED") then
+        nullify(srcFlds)
+      else
+        call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+          msg="ModifyCplList for "//trim(connectorName)//" not implemented", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+      ! get destination field list
+      if (dstName .eq. "LND") then
         dstFlds=>fldsToLnd
-      elseif (connectorName .eq. "LND-TO-MED") then
-        srcFlds=>fldsFrLnd
-      elseif (connectorName .eq. "MED-TO-LND") then
-        dstFlds=>fldsToLnd
-      elseif (connectorName .eq. "HYD-TO-MED") then
-        srcFlds=>fldsFrHyd
-      elseif (connectorName .eq. "MED-TO-HYD") then
+      elseif (dstName .eq. "HYD") then
         dstFlds=>fldsToHyd
+      elseif (dstName .eq. "MED") then
+        nullify(dstFlds)
       else
         call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
           msg="ModifyCplList for "//trim(connectorName)//" not implemented", &

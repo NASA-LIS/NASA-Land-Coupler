@@ -99,6 +99,7 @@ module ESM
     logical                       :: multiInst
     integer                       :: instCnt
     integer                       :: dt
+    logical                       :: isPresent
 
     rc = ESMF_SUCCESS
 
@@ -321,6 +322,46 @@ module ESM
       call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+
+      ! Pass multi instance setting to mediator
+      if (enabledHyd) then
+        call ESMF_ConfigFindLabel(config, label="instance_count_hyd:", &
+          isPresent=isPresent, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        if (isPresent) then
+          call ESMF_ConfigGetAttribute(config, instCnt, &
+            label="instance_count_hyd:", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call NUOPC_CompAttributeAdd(child, &
+            attrList=(/"instance_count_hyd"/), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(child, name="instance_count_hyd", &
+            value=instCnt, convention="NUOPC", purpose="Instance", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        endif
+        call ESMF_ConfigFindLabel(config, label="multi_instance_hyd:", &
+          isPresent=isPresent, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        if (isPresent) then
+          call ESMF_ConfigGetAttribute(config, multiInst, &
+            label="multi_instance_hyd:", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call NUOPC_CompAttributeAdd(child, &
+            attrList=(/"multi_instance_hyd"/), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(child, name="multi_instance_hyd", &
+            value=multiInst, convention="NUOPC", purpose="Instance", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        endif
+      endif !enabledHyd
 
     endif !enabledMed
 

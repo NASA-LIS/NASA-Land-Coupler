@@ -35,6 +35,20 @@ module Mediator
     INIT_DEFAULTS = dataIniType(0),  &
     INIT_MODELS   = dataIniType(1)
 
+  type instMapType
+    sequence
+    private
+      integer :: maptype
+  end type
+
+  type(instMapType), parameter ::   &
+    MAP_ERR      = instMapType(-1), & ! Error code
+    MAP_SCATRSGL = instMapType(0),  & ! Scatter non-ensemble to all instances
+    MAP_SCATRENS = instMapType(1),  & ! Scatter ensemble to all instances
+    MAP_GATHR1ST = instMapType(2),  & ! Copy first instance to non-ensemble
+    MAP_GATHRAVG = instMapType(3),  & ! Average all instances to non-ensemble
+    MAP_GATHRENS = instMapType(4)     ! Gather many instances to ensemble
+
   type med_ext_conn_type
     type(ESMF_State)                :: frState
     type(ESMF_State)                :: toState
@@ -46,14 +60,14 @@ module Mediator
     type(ESMF_FieldBundle)          :: connToFB
   end type med_ext_conn_type
 
-  type med_uni_conn_type
+  type med_int_conn_type
     type(med_fld_type), allocatable  :: dstFlds(:)
     type(med_fld_type), allocatable  :: srcFlds(:)
     type(ESMF_FieldBundle)           :: srcFB
     type(ESMF_FieldBundle)           :: dstFB
     type(ESMF_RouteHandle)           :: rhBilnr
     type(ESMF_RouteHandle)           :: rhFcopy
-  end type med_uni_conn_type
+  end type med_int_conn_type
 
   character(*), parameter :: &
     label_InternalState = "Med_InternalState"
@@ -61,13 +75,15 @@ module Mediator
   type type_InternalStateStruct
     type(med_ext_conn_type), allocatable :: LND(:)
     type(med_ext_conn_type), allocatable :: HYD(:)
-    type(med_uni_conn_type)              :: toLND
-    type(med_uni_conn_type)              :: toHYD
+    type(med_int_conn_type)              :: toLND
+    type(med_int_conn_type)              :: toHYD
     logical                              :: multiInstLnd = .false.
     integer                              :: instCntLnd   = 1
+    integer                              :: mbrCntLnd    = 1
     character(3)                         :: lndStrFmt    = "0"
     logical                              :: multiInstHyd = .false.
     integer                              :: instCntHyd   = 1
+    integer                              :: mbrCntHyd    = 1
     character(3)                         :: hydStrFmt    = "0"
     type(fieldRemapFlag)                 :: remapDstLND  = FLD_REMAP_UNKOWN
     type(fieldRemapFlag)                 :: remapDstHYD  = FLD_REMAP_UNKOWN
@@ -1028,6 +1044,7 @@ module Mediator
     character(len=64)         :: attValue
     integer                   :: i
     character(10)             :: instStr
+    character(ESMF_MAXSTR)    :: msg
 
     rc = ESMF_SUCCESS
 
@@ -1175,6 +1192,28 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     is%wrap%maskToHYD = attValue
+
+    ! Count Ensemble Members
+    call med_count_ensMembers(is%wrap%HYD(1)%toState, &
+      mbrCount=is%wrap%mbrCntHyd, label="MED: toHYD", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call med_count_ensMembers(is%wrap%LND(1)%toState, &
+      mbrCount=is%wrap%mbrCntLnd, label="MED: toLND", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (btest(verbosity,16)) then
+      write (msg,"(A,I0)") trim(name)//": Ensemble members Hyd=", &
+        is%wrap%mbrCntHyd
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      write (msg,"(A,I0)") trim(name)//": Ensemble members Lnd=", &
+        is%wrap%mbrCntLnd
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     ! Gather Ensemble Members
     ! INCOMPLETE
@@ -1463,12 +1502,81 @@ module Mediator
 
     !---------------------------------------------------------------------------
 
+    subroutine med_count_ensMembers(ensState, mbrCount, label, rc)
+      type(ESMF_State),intent(in) :: ensState
+      integer,intent(out)         :: mbrCount
+      character(*),intent(in)     :: label
+      integer,intent(out)         :: rc
+      ! local variables
+      integer                                 :: i
+      character(len=80), allocatable          :: itemNameList(:)
+      type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+      integer                                 :: itemCount
+      type(ESMF_Field)                        :: field
+      type(ESMF_Array)                        :: array
+      integer                                 :: rank
+      integer                                 :: dimCount
+      integer                                 :: undistCount
+      integer, allocatable                    :: undistLBound(:)
+      integer, allocatable                    :: undistUBound(:)
+
+      call ESMF_StateGet(ensState, itemCount=itemCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      allocate(itemNameList(itemCount), itemTypeList(itemCount))
+      call ESMF_StateGet(ensState, &
+        itemNameList=itemNameList, itemTypeList=itemTypeList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      do i=1, itemCount
+        if (itemTypeList(i)==ESMF_STATEITEM_FIELD) then
+          call ESMF_StateGet(ensState, field=field, itemName=itemNameList(i), &
+            rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldGet(field, array=array, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_ArrayGet(array, rank=rank, dimCount=dimCount, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          undistCount = rank - dimCount
+          if (undistCount .eq. 1) then
+            allocate(undistLBound(undistCount), undistUBound(undistCount))
+            call ESMF_ArrayGet(array, undistLBound=undistLBound, &
+              undistUBound=undistUBound, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+            mbrCount = undistUBound(1) - undistLBound(1) + 1
+            deallocate(undistLBound, undistUBound)
+          elseif (undistCount .lt. 1) then
+            mbrCount = 0
+            call ESMF_LogWrite(trim(label)//" - No ensemble dimension found.", &
+              ESMF_LOGMSG_WARNING, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          else
+            mbrCount = -1
+            call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+              msg=trim(label)//" - Cannot determine ensemble count for "// &
+                  "greater than 1 distributed dimension.", &
+              line=__LINE__, file=__FILE__, rcToReturn=rc)
+            return ! bail out
+          endif
+          exit
+        endif
+      enddo
+
+    end subroutine
+
+    !---------------------------------------------------------------------------
+
     subroutine med_compute_rh(srcCmpList, dstCmp, label, conn, mapping, &
       srcMask, dstMask, rc)
       type(med_ext_conn_type),intent(in)    :: srcCmpList(:)
       type(med_ext_conn_type),intent(in)    :: dstCmp
       character(*),intent(in)               :: label
-      type(med_uni_conn_type),intent(inout) :: conn
+      type(med_int_conn_type),intent(inout) :: conn
       type(fieldRemapFlag),intent(in)       :: mapping
       type(fieldMaskFlag),intent(in)        :: srcMask
       type(fieldMaskFlag),intent(in)        :: dstMask
@@ -2629,7 +2737,7 @@ module Mediator
   !-----------------------------------------------------------------------------
 
   subroutine MedConn_DataReset(toComp, resetValue, rc)
-    type(med_uni_conn_type) :: toComp
+    type(med_int_conn_type) :: toComp
     real(ESMF_KIND_R8), intent(in), optional :: resetValue
     integer, intent(out) :: rc
     ! local variables

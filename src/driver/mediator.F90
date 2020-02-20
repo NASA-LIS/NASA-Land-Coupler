@@ -35,19 +35,17 @@ module Mediator
     INIT_DEFAULTS = dataIniType(0),  &
     INIT_MODELS   = dataIniType(1)
 
-  type instMapType
+  type ensMapType
     sequence
     private
       integer :: maptype
   end type
 
-  type(instMapType), parameter ::   &
-    MAP_ERR      = instMapType(-1), & ! Error code
-    MAP_SCATRSGL = instMapType(0),  & ! Scatter non-ensemble to all instances
-    MAP_SCATRENS = instMapType(1),  & ! Scatter ensemble to all instances
-    MAP_GATHR1ST = instMapType(2),  & ! Copy first instance to non-ensemble
-    MAP_GATHRAVG = instMapType(3),  & ! Average all instances to non-ensemble
-    MAP_GATHRENS = instMapType(4)     ! Gather many instances to ensemble
+  type(ensMapType), parameter ::  &
+    EMAP_ERR    = ensMapType(-1), & ! Error code
+    EMAP_NOENSM = ensMapType(0),  & ! No ensemble remapping
+    EMAP_ENSLND = ensMapType(1),  & ! Scatter LND ensemble to HYD instances
+    EMAP_ENSHYD = ensMapType(2)     ! Scatter HYD ensemble to LND instances
 
   type med_ext_conn_type
     type(ESMF_State)                :: frState
@@ -59,6 +57,11 @@ module Mediator
     type(ESMF_FieldBundle)          :: connFrFB
     type(ESMF_FieldBundle)          :: connToFB
   end type med_ext_conn_type
+
+  type med_ens_conn_type
+    type(ESMF_State)                :: ensState
+    type(ESMF_State), allocatable   :: sglStates(:)
+  end type med_ens_conn_type
 
   type med_int_conn_type
     type(med_fld_type), allocatable  :: dstFlds(:)
@@ -75,8 +78,11 @@ module Mediator
   type type_InternalStateStruct
     type(med_ext_conn_type), allocatable :: LND(:)
     type(med_ext_conn_type), allocatable :: HYD(:)
-    type(med_int_conn_type)              :: toLND
-    type(med_int_conn_type)              :: toHYD
+    type(med_ens_conn_type), allocatable :: ensConnLND(:)
+    type(med_ens_conn_type), allocatable :: ensConnHYD(:)
+    type(med_int_conn_type), allocatable :: toLND(:)
+    type(med_int_conn_type), allocatable :: toHYD(:)
+    type(ensMapType)                     :: ensMap       = EMAP_NOENSM
     logical                              :: multiInstLnd = .false.
     integer                              :: instCntLnd   = 1
     integer                              :: mbrCntLnd    = 1
@@ -85,6 +91,7 @@ module Mediator
     integer                              :: instCntHyd   = 1
     integer                              :: mbrCntHyd    = 1
     character(3)                         :: hydStrFmt    = "0"
+    type(dataIniType)                    :: iniType      = INIT_DEFAULTS
     type(fieldRemapFlag)                 :: remapDstLND  = FLD_REMAP_UNKOWN
     type(fieldRemapFlag)                 :: remapDstHYD  = FLD_REMAP_UNKOWN
     type(fieldMaskFlag)                  :: maskFrLND    = FLD_MASK_UNK
@@ -108,11 +115,14 @@ module Mediator
 
   interface operator (==)
     module procedure dataIniType_eq
+    module procedure ensMapType_eq
   end interface
 
   interface assignment (=)
     module procedure dataIniType_tostring
     module procedure dataIniType_frstring
+    module procedure ensMapType_tostring
+    module procedure ensMapType_frstring
   end interface
 
   !-----------------------------------------------------------------------------
@@ -359,6 +369,20 @@ module Mediator
       return
     endif
 
+    call ESMF_AttributeGet(mediator, name="DataInitialization", &
+      value=value, defaultValue="INIT_DEFAULTS", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    is%wrap%iniType = value
+
+    call ESMF_AttributeGet(mediator, name="EnsembleMapping", &
+      value=value, defaultValue="EMAP_NOENSM", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    is%wrap%ensMap = value
+
     ! get component output directory
     call ESMF_AttributeGet(mediator, name="OutputDirectory", &
       value=is%wrap%dirOutput, defaultValue=trim(name)//"_OUTPUT", &
@@ -392,8 +416,20 @@ module Mediator
       call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      write (msg,"(A,I0)")  trim(name)//":   instance_count_hyd=", &
-        is%wrap%instCntHyd
+      write (msg,"(A,L1)")  trim(name)//":   multi_instance_lnd=", &
+        is%wrap%multiInstLnd
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      value = is%wrap%iniType
+      write (msg,"(A,A)")  trim(name)//":   DataInitialization=", &
+        trim(value)
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      value = is%wrap%ensMap
+      write (msg,"(A,A)")  trim(name)//":   EnsembleMapping=", &
+        trim(value)
       call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1045,6 +1081,7 @@ module Mediator
     integer                   :: i
     character(10)             :: instStr
     character(ESMF_MAXSTR)    :: msg
+    integer                   :: stat
 
     rc = ESMF_SUCCESS
 
@@ -1202,40 +1239,95 @@ module Mediator
       mbrCount=is%wrap%mbrCntLnd, label="MED: toLND", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! Log ensemble and instance counts
     if (btest(verbosity,16)) then
-      write (msg,"(A,I0)") trim(name)//": Ensemble members Hyd=", &
+      write (msg,"(A,I0)") trim(name)//": Instance count Hyd   = ", &
+        is%wrap%instCntHyd
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      write (msg,"(A,I0)") trim(name)//": Ensemble members Hyd = ", &
         is%wrap%mbrCntHyd
       call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      write (msg,"(A,I0)") trim(name)//": Ensemble members Lnd=", &
+      write (msg,"(A,I0)") trim(name)//": Instance count Lnd   = ", &
+        is%wrap%instCntLnd
+      call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      write (msg,"(A,I0)") trim(name)//": Ensemble members Lnd = ", &
         is%wrap%mbrCntLnd
       call ESMF_LogWrite(msg, ESMF_LOGMSG_INFO, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
-    ! Gather Ensemble Members
-    ! INCOMPLETE
+    ! Check ensemble mapping type
+    if (is%wrap%ensMap .eq. EMAP_NOENSM) then
+      if ((is%wrap%instCntLnd .ne. 1) .OR. (is%wrap%instCntHyd .ne. 1) .OR. &
+          (is%wrap%mbrCntLnd .ne. 0) .OR. (is%wrap%mbrCntHyd .ne. 0)) then
+            call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+              msg=trim(name)//" - Ensemble member counts and "// &
+                  "instance counts must equal 1 for EMAP_NOENSM", &
+              line=__LINE__, file=__FILE__, rcToReturn=rc)
+            return ! bail out
+      endif
+      is%wrap%mbrCntLnd = 1
+      is%wrap%mbrCntHyd = 1
+    elseif (is%wrap%ensMap .eq. EMAP_ENSLND) then
+      if ((is%wrap%instCntLnd .ne. 1) .OR. (is%wrap%mbrCntHyd .ne. 0) .OR. &
+          (is%wrap%mbrCntLnd .ne. is%wrap%instCntHyd)) then
+            call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+              msg=trim(name)//" - LND ensemble member count must "// &
+                  "must match HYD instance count for EMAP_ENSLND", &
+              line=__LINE__, file=__FILE__, rcToReturn=rc)
+            return ! bail out
+      endif
+      is%wrap%mbrCntHyd = 1
+    elseif (is%wrap%ensMap .eq. EMAP_ENSHYD) then
+      if ((is%wrap%instCntHyd .ne. 1) .OR. (is%wrap%mbrCntLnd .ne. 0) .OR. &
+          (is%wrap%mbrCntHyd .ne. is%wrap%instCntLnd)) then
+            call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+              msg=trim(name)//" - HYD ensemble member count must "// &
+                  "must match LND instance count for EMAP_ENSHYD", &
+              line=__LINE__, file=__FILE__, rcToReturn=rc)
+            return ! bail out
+      endif
+      is%wrap%mbrCntLnd = 1
+    else
+      call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+        msg=trim(name)//" - LND-HYD ensemble mapping type unknown. ", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return ! bail out
+    endif
+
+    allocate(is%wrap%toHyd(is%wrap%mbrCntHyd), &
+             is%wrap%toLnd(is%wrap%mbrCntLnd), &
+             stat=stat )
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of component member connection memory failed.", &
+      line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+      return  ! bail out
 
     ! Compute RHs
-    ! INCOMPLETE
     call med_compute_rh(srcCmpList=(/is%wrap%LND(1)/), dstCmp=is%wrap%HYD(1), &
-      conn=is%wrap%toHyd, label="MED: toHYD", mapping=is%wrap%remapDstHYD, &
+      conn=is%wrap%toHyd(1), label="MED: toHYD", mapping=is%wrap%remapDstHYD, &
       srcMask=is%wrap%maskFrLND, dstMask=is%wrap%maskToHYD, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
     call med_compute_rh(srcCmpList=(/is%wrap%HYD(1)/), dstCmp=is%wrap%LND(1), &
-      conn=is%wrap%toLND, label="MED: toLND", mapping=is%wrap%remapDstLND, &
+      conn=is%wrap%toLND(1), label="MED: toLND", mapping=is%wrap%remapDstLND, &
       srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! Initialize realized fields
-    call MedConn_DataReset(is%wrap%toLND, resetValue=LISHYDRO_INITVAL, rc=rc)
+    call MedConn_DataReset(is%wrap%toLND(1), resetValue=LISHYDRO_INITVAL, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call MedConn_DataReset(is%wrap%toHYD, resetValue=LISHYDRO_INITVAL, rc=rc)
+    call MedConn_DataReset(is%wrap%toHYD(1), resetValue=LISHYDRO_INITVAL, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -1551,10 +1643,10 @@ module Mediator
             deallocate(undistLBound, undistUBound)
           elseif (undistCount .lt. 1) then
             mbrCount = 0
-            call ESMF_LogWrite(trim(label)//" - No ensemble dimension found.", &
-              ESMF_LOGMSG_WARNING, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-              line=__LINE__, file=__FILE__)) return  ! bail out
+!            call ESMF_LogWrite(trim(label)//" - No ensemble dimension found.", &
+!              ESMF_LOGMSG_WARNING, rc=rc)
+!            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!              line=__LINE__, file=__FILE__)) return  ! bail out
           else
             mbrCount = -1
             call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
@@ -1754,7 +1846,6 @@ module Mediator
     type(type_InternalState)     :: is
     character(len=40)            :: value
     integer                      :: verbosity, diagnostic
-    type(dataIniType)            :: iniType
     logical                      :: isCurrent
     logical                      :: allSatisfied
     logical                      :: checkSatisfied
@@ -1795,12 +1886,6 @@ module Mediator
       specialValueList=(/0,65535,65536/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call ESMF_AttributeGet(mediator, name="DataInitialization", &
-      value=value, defaultValue="INIT_DEFAULTS", &
-      convention="NUOPC", purpose="Instance", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    iniType = value
 
     ! query the Mediator for clocks
     call NUOPC_MediatorGet(mediator, mediatorClock=mediatorClock, rc=rc)
@@ -1823,12 +1908,12 @@ module Mediator
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    if (iniType == INIT_MODELS) then
+    if (is%wrap%iniType == INIT_MODELS) then
       allSatisfied=.TRUE.
 
       ! Check toLnd Data
       checkSatisfied = .TRUE.
-      call ESMF_FieldBundleGet(is%wrap%toLND%srcFB, &
+      call ESMF_FieldBundleGet(is%wrap%toLND(1)%srcFB, &
         fieldCount=fieldCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1836,7 +1921,7 @@ module Mediator
       if (ESMF_LogFoundAllocError(statusToCheck=stat, &
         msg="Allocation of field list memory failed.", &
         line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
-      call ESMF_FieldBundleGet(is%wrap%toLND%srcFB, &
+      call ESMF_FieldBundleGet(is%wrap%toLND(1)%srcFB, &
         fieldList=fieldList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1871,7 +1956,7 @@ module Mediator
         call MediatorRemapToLnd(mediator, rc=rc) ! Remap toLND
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleGet(is%wrap%toLND%dstFB, &
+        call ESMF_FieldBundleGet(is%wrap%toLND(1)%dstFB, &
           fieldCount=fieldCount, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1879,7 +1964,7 @@ module Mediator
         if (ESMF_LogFoundAllocError(statusToCheck=stat, &
           msg="Allocation of field list memory failed.", &
           line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
-        call ESMF_FieldBundleGet(is%wrap%toLND%dstFB, &
+        call ESMF_FieldBundleGet(is%wrap%toLND(1)%dstFB, &
           fieldList=fieldList, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1899,7 +1984,7 @@ module Mediator
 
       ! Check toHyd Data
       checkSatisfied = .TRUE.
-      call ESMF_FieldBundleGet(is%wrap%toHYD%srcFB, &
+      call ESMF_FieldBundleGet(is%wrap%toHYD(1)%srcFB, &
         fieldCount=fieldCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1907,7 +1992,7 @@ module Mediator
       if (ESMF_LogFoundAllocError(statusToCheck=stat, &
         msg="Allocation of field list memory failed.", &
         line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
-      call ESMF_FieldBundleGet(is%wrap%toHYD%srcFB, &
+      call ESMF_FieldBundleGet(is%wrap%toHYD(1)%srcFB, &
         fieldList=fieldList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1942,7 +2027,7 @@ module Mediator
         call MediatorRemapToHyd(mediator, rc=rc) ! Remap toHYD
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleGet(is%wrap%toHYD%dstFB, &
+        call ESMF_FieldBundleGet(is%wrap%toHYD(1)%dstFB, &
           fieldCount=fieldCount, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1950,7 +2035,7 @@ module Mediator
         if (ESMF_LogFoundAllocError(statusToCheck=stat, &
           msg="Allocation of field list memory failed.", &
           line=__LINE__, file=__FILE__, rcToReturn=rc)) return ! bail out
-        call ESMF_FieldBundleGet(is%wrap%toHYD%dstFB, &
+        call ESMF_FieldBundleGet(is%wrap%toHYD(1)%dstFB, &
           fieldList=fieldList, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1967,12 +2052,12 @@ module Mediator
       else ! if .NOT. checkSatisfied
         allSatisfied = .FALSE.
       endif
-    elseif (iniType == INIT_DEFAULTS) then
+    elseif (is%wrap%iniType == INIT_DEFAULTS) then
       allSatisfied = .TRUE.
-      call MedConn_DataReset(is%wrap%toLND, rc=rc)
+      call MedConn_DataReset(is%wrap%toLND(1), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      call MedConn_DataReset(is%wrap%toHYD, rc=rc)
+      call MedConn_DataReset(is%wrap%toHYD(1), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       if (verbosity>0) then
@@ -1984,7 +2069,7 @@ module Mediator
       endif
     else
       allSatisfied = .FALSE.
-      write (msg,"(A)") iniType
+      write (msg,"(A)") is%wrap%iniType
       call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
         msg="Unsupported DataInitialization "//trim(msg), &
         line=__LINE__, file=__FILE__, rcToReturn=rc)
@@ -1994,28 +2079,28 @@ module Mediator
     if (allSatisfied) then
       ! write src field bundle
       if (btest(diagnostic,16)) then
-        call ESMF_FieldBundleWrite(is%wrap%toLND%srcFB, &
+        call ESMF_FieldBundleWrite(is%wrap%toLND(1)%srcFB, &
           fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                    trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
           singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
           timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleWrite(is%wrap%toHYD%srcFB, &
+        call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%srcFB, &
           fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                    trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
           singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
           timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleWrite(is%wrap%toLND%dstFB, &
+        call ESMF_FieldBundleWrite(is%wrap%toLND(1)%dstFB, &
           fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                    trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
           singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
           timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleWrite(is%wrap%toHYD%dstFB, &
+        call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%dstFB, &
           fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                    trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
           singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
@@ -2258,7 +2343,7 @@ module Mediator
 
     ! write src field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toLND%srcFB, &
+      call ESMF_FieldBundleWrite(is%wrap%toLND(1)%srcFB, &
         fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                  trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
         singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
@@ -2269,15 +2354,15 @@ module Mediator
 
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
     if (is%wrap%remapDstLND .eq. FLD_REMAP_BILINR) then
-      call ESMF_FieldBundleRegrid(is%wrap%toLND%srcFB, is%wrap%toLND%dstFB, &
-        routehandle=is%wrap%toLND%rhBilnr, &
+      call ESMF_FieldBundleRegrid(is%wrap%toLND(1)%srcFB, is%wrap%toLND(1)%dstFB, &
+        routehandle=is%wrap%toLND(1)%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     elseif (is%wrap%remapDstLND .eq. FLD_REMAP_REDIST) then
-      call ESMF_FieldBundleRedist(is%wrap%toLND%srcFB,is%wrap%toLND%dstFB, &
-        routehandle=is%wrap%toLND%rhFcopy, rc=rc)
+      call ESMF_FieldBundleRedist(is%wrap%toLND(1)%srcFB,is%wrap%toLND(1)%dstFB, &
+        routehandle=is%wrap%toLND(1)%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     else
@@ -2296,7 +2381,7 @@ module Mediator
 
     ! write dst field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toLND%dstFB, &
+      call ESMF_FieldBundleWrite(is%wrap%toLND(1)%dstFB, &
         fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                  trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
         singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
@@ -2469,7 +2554,7 @@ module Mediator
 
     ! write src field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toHYD%srcFB, &
+      call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%srcFB, &
         fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                  trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
         singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
@@ -2480,15 +2565,15 @@ module Mediator
 
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
     if (is%wrap%remapDstHYD .eq. FLD_REMAP_BILINR) then
-      call ESMF_FieldBundleRegrid(is%wrap%toHYD%srcFB, is%wrap%toHYD%dstFB, &
-        routehandle=is%wrap%toHYD%rhBilnr, &
+      call ESMF_FieldBundleRegrid(is%wrap%toHYD(1)%srcFB, is%wrap%toHYD(1)%dstFB, &
+        routehandle=is%wrap%toHYD(1)%rhBilnr, &
         zeroregion=ESMF_REGION_SELECT, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     elseif (is%wrap%remapDstHYD .eq. FLD_REMAP_REDIST) then
-      call ESMF_FieldBundleRedist(is%wrap%toHYD%srcFB, is%wrap%toHYD%dstFB, &
-        routehandle=is%wrap%toHYD%rhFcopy, rc=rc)
+      call ESMF_FieldBundleRedist(is%wrap%toHYD(1)%srcFB, is%wrap%toHYD(1)%dstFB, &
+        routehandle=is%wrap%toHYD(1)%rhFcopy, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     else
@@ -2507,7 +2592,7 @@ module Mediator
 
     ! write src field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toHYD%dstFB, &
+      call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%dstFB, &
         fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
                  trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
         singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
@@ -3016,6 +3101,48 @@ module Mediator
       tval = INIT_MODELS
     else
       tval = INIT_ERROR
+    endif
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  function ensMapType_eq(type1, type2)
+    logical ensMapType_eq
+    type(ensMapType), intent(in) :: type1, type2
+    ensMapType_eq = (type1%maptype == type2%maptype)
+  end function
+
+  !-----------------------------------------------------------------------------
+
+  subroutine ensMapType_tostring(string, tval)
+    character(len=*), intent(out) :: string
+    type(ensMapType), intent(in) :: tval
+    if (tval == EMAP_ERR) then
+      string = 'EMAP_ERR'
+    elseif (tval == EMAP_NOENSM) then
+      string = 'EMAP_NOENSM'
+    elseif (tval == EMAP_ENSLND) then
+      string = 'EMAP_ENSLND'
+    elseif (tval == EMAP_ENSHYD) then
+      string = 'EMAP_ENSHYD'
+    else
+      string = 'EMAP_ERR'
+    endif
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine ensMapType_frstring(tval, string)
+    type(ensMapType), intent(out) :: tval
+    character(len=*), intent(in)   :: string
+    if (string .eq. 'EMAP_NOENSM') then
+      tval = EMAP_NOENSM
+    elseif (string .eq.'EMAP_ENSLND') then
+      tval = EMAP_ENSLND
+    elseif (string .eq.'EMAP_ENSHYD') then
+      tval = EMAP_ENSHYD
+    else
+      tval = EMAP_ERR
     endif
   end subroutine
 

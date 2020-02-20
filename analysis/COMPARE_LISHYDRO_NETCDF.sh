@@ -17,7 +17,9 @@ OPT_DIFPFX="DIFF"
 OPT_MBSDIR="diffs"
 OPT_MBSPFX="MABS"
 OPT_ALLFIL=false
-OPT_LISVAR="-v CRainf_f_inst,CRainf_f_tavg,EWind_f_inst,EWind_f_tavg,LWdown_f_inst,LWdown_f_tavg,NWind_f_inst,NWind_f_tavg,Psurf_f_inst,Psurf_f_tavg,Qair_f_inst,Qair_f_tavg,Qg_inst,Qg_tavg,Qh_inst,Qh_tavg,Qle_inst,Qle_tavg,Qs_inst,Qs_tavg,Qsb_inst,Qsb_tavg,Rainf_f_inst,Rainf_f_tavg,SWdown_f_inst,SWdown_f_tavg,SmLiqFrac_inst,SmLiqFrac_tavg,SoilMoist_inst,SoilMoist_tavg,SoilTemp_inst,SoilTemp_tavg,Tair_f_inst,Tair_f_tavg"
+#OPT_LISVAR="-v CRainf_f_inst,CRainf_f_tavg,EWind_f_inst,EWind_f_tavg,LWdown_f_inst,LWdown_f_tavg,NWind_f_inst,NWind_f_tavg,Psurf_f_inst,Psurf_f_tavg,Qair_f_inst,Qair_f_tavg,Qg_inst,Qg_tavg,Qh_inst,Qh_tavg,Qle_inst,Qle_tavg,Qs_inst,Qs_tavg,Qsb_inst,Qsb_tavg,Rainf_f_inst,Rainf_f_tavg,SWdown_f_inst,SWdown_f_tavg,SmLiqFrac_inst,SmLiqFrac_tavg,SoilMoist_inst,SoilMoist_tavg,SoilTemp_inst,SoilTemp_tavg,Tair_f_inst,Tair_f_tavg"
+OPT_LISVAR="-v Swnet_tavg,Lwnet_tavg,Snowf_tavg,Rainf_tavg,Evap_tavg,Qs_tavg,Qsb_tavg,Qsm_tavg,SWE_tavg,SnowDepth_tavg,TWS_tavg,Snowcover_tavg,SWdown_f_tavg,LWdown_f_tavg,TotalPrecip_tavg,SoilMoist_tavg,SoilTemp_tavg"
+
 OPT_HYDVAR="-v streamflow,head"
 OPT_HYDVRN="-d .feature_id,station -v .Head,head"
 

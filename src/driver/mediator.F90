@@ -2528,6 +2528,12 @@ module Mediator
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
+    if (is%wrap%ensMap .eq. EMAP_ENSHYD) then
+      call MedConn_ScatterEnsemble(is%wrap%HYD(1), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
     do i=1, size(is%wrap%toLND)
       if (is%wrap%remapDstLND .eq. FLD_REMAP_BILINR) then
@@ -2550,9 +2556,15 @@ module Mediator
       endif
     enddo
 
-    ! scatter to other instances
-    if (is%wrap%multiInstLnd) then
-      call MedConn_Scatter(is%wrap%LND, rc=rc)
+!    ! scatter to other instances
+!    if (is%wrap%multiInstLnd) then
+!      call MedConn_Scatter(is%wrap%LND, rc=rc)
+!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!        line=__LINE__, file=__FILE__)) return  ! bail out
+!    endif
+
+    if (is%wrap%ensMap .eq. EMAP_ENSLND) then
+      call MedConn_GatherEnsemble(is%wrap%LND(1), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
@@ -2742,6 +2754,12 @@ module Mediator
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
+    if (is%wrap%ensMap .eq. EMAP_ENSLND) then
+      call MedConn_ScatterEnsemble(is%wrap%LND(1), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
     do i=1, size(is%wrap%toHYD)
       if (is%wrap%remapDstHYD .eq. FLD_REMAP_BILINR) then
@@ -2764,9 +2782,15 @@ module Mediator
       endif
     enddo
 
-    ! scatter to other instances
-    if (is%wrap%multiInstHyd) then
-      call MedConn_Scatter(is%wrap%HYD, rc=rc)
+!    ! scatter to other instances
+!    if (is%wrap%multiInstHyd) then
+!      call MedConn_Scatter(is%wrap%HYD, rc=rc)
+!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!        line=__LINE__, file=__FILE__)) return  ! bail out
+!    endif
+
+    if (is%wrap%ensMap .eq. EMAP_ENSHYD) then
+      call MedConn_GatherEnsemble(is%wrap%HYD(1), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
@@ -3050,6 +3074,115 @@ module Mediator
     enddo
 
     deallocate(srcFields)
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine MedConn_ScatterEnsemble(extConn, rc)
+    type(med_ext_conn_type), intent(inout) :: extConn
+    integer, intent(out) :: rc
+    ! local variables
+    integer                                 :: i, j
+    integer                                 :: itemCount
+    integer                                 :: fieldCount
+    character(len=80), allocatable          :: itemNameList(:)
+    type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+    type(ESMF_Field)                        :: ensField
+    type(ESMF_Field)                        :: field
+    real(LISHYDRO_KIND), pointer            :: ensFarrayPtr(:,:,:)
+    real(LISHYDRO_KIND), pointer            :: farrayPtr(:,:)
+
+    rc = ESMF_SUCCESS
+
+    ! query info about the items in the state
+    call ESMF_StateGet(extConn%extFrState, nestedFlag=.true., &
+      itemCount=itemCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    allocate(itemNameList(itemCount), itemTypeList(itemCount))
+    call ESMF_StateGet(extConn%extFrState, nestedFlag=.true., &
+      itemNameList=itemNameList, itemTypeList=itemTypeList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    ! copy slice of ensemble field to another field
+    do i=1, itemCount
+      if (itemTypeList(i)==ESMF_STATEITEM_FIELD) then
+        call ESMF_StateGet(extConn%extFrState, field=ensField, &
+          itemName=itemNameList(i), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldGet(ensField, farrayPtr=ensFarrayPtr, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        do j=1, size(extConn%intFrState)
+          call ESMF_StateGet(extConn%intFrState(j), field=field, &
+            itemName=itemNameList(i), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldGet(field, farrayPtr=farrayPtr, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          farrayPtr(:,:) = ensFarrayPtr(:,:,j)
+        enddo
+      endif
+    enddo
+
+    deallocate(itemNameList, itemTypeList)
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine MedConn_GatherEnsemble(extComp, rc)
+    type(med_ext_conn_type), intent(inout) :: extComp
+    integer, intent(out) :: rc
+    ! local variables
+    integer                                 :: i, j
+    integer                                 :: itemCount
+    integer                                 :: fieldCount
+    character(len=80), allocatable          :: itemNameList(:)
+    type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+    type(ESMF_Field)                        :: ensField
+    type(ESMF_Field)                        :: field
+    real(LISHYDRO_KIND), pointer            :: ensFarrayPtr(:,:,:)
+    real(LISHYDRO_KIND), pointer            :: farrayPtr(:,:)
+
+    rc = ESMF_SUCCESS
+
+    ! query info about the items in the state
+    call ESMF_StateGet(extComp%extToState, itemCount=itemCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    allocate(itemNameList(itemCount), itemTypeList(itemCount))
+    call ESMF_StateGet(extComp%extToState, itemNameList=itemNameList, &
+      itemTypeList=itemTypeList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    ! copy field to every slice in ensemble field
+    do i=1, itemCount
+      if (itemTypeList(i)==ESMF_STATEITEM_FIELD) then
+        call ESMF_StateGet(extComp%extToState, field=ensField, &
+          itemName=itemNameList(i), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_FieldGet(ensField, farrayPtr=ensFarrayPtr, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        do j=1, size(extComp%intToState)
+          call ESMF_StateGet(extComp%intToState(j), field=field, &
+            itemName=itemNameList(i), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldGet(field, farrayPtr=farrayPtr, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          ensFarrayPtr(:,:,j) = farrayPtr(:,:)
+        enddo
+      endif
+    enddo
+
+    deallocate(itemNameList, itemTypeList)
 
   end subroutine
 

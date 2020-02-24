@@ -48,8 +48,10 @@ module Mediator
     EMAP_ENSHYD = ensMapType(2)     ! Scatter HYD ensemble to LND instances
 
   type med_ext_conn_type
-    type(ESMF_State)                :: frState
-    type(ESMF_State)                :: toState
+    type(ESMF_State)                :: extFrState
+    type(ESMF_State)                :: extToState
+    type(ESMF_State), allocatable   :: intFrState(:)
+    type(ESMF_State), allocatable   :: intToState(:)
     type(med_fld_type), pointer     :: allFrFlds(:) => null()
     type(med_fld_type), pointer     :: allToFlds(:) => null()
     type(med_fld_type), allocatable :: connFrFlds(:)
@@ -57,11 +59,6 @@ module Mediator
     type(ESMF_FieldBundle)          :: connFrFB
     type(ESMF_FieldBundle)          :: connToFB
   end type med_ext_conn_type
-
-  type med_ens_conn_type
-    type(ESMF_State)                :: ensState
-    type(ESMF_State), allocatable   :: sglStates(:)
-  end type med_ens_conn_type
 
   type med_int_conn_type
     type(med_fld_type), allocatable  :: dstFlds(:)
@@ -78,8 +75,6 @@ module Mediator
   type type_InternalStateStruct
     type(med_ext_conn_type), allocatable :: LND(:)
     type(med_ext_conn_type), allocatable :: HYD(:)
-    type(med_ens_conn_type), allocatable :: ensConnLND(:)
-    type(med_ens_conn_type), allocatable :: ensConnHYD(:)
     type(med_int_conn_type), allocatable :: toLND(:)
     type(med_int_conn_type), allocatable :: toHYD(:)
     type(ensMapType)                     :: ensMap       = EMAP_NOENSM
@@ -558,11 +553,11 @@ module Mediator
       is%wrap%LND(i)%allFrFlds => fldsFrLnd
       !  use namespace in the importState
       call NUOPC_AddNamespace(importState, namespace=trim(instStr), &
-        nestedState=is%wrap%LND(i)%frState, rc=rc)
+        nestedState=is%wrap%LND(i)%extFrState, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       !  advertise fields in the nested state
-      call field_advertise(is%wrap%LND(i)%allFrFlds, is%wrap%LND(i)%frState, &
+      call field_advertise(is%wrap%LND(i)%allFrFlds, is%wrap%LND(i)%extFrState, &
         "cannot provide", rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -570,11 +565,11 @@ module Mediator
       is%wrap%LND(i)%allToFlds => fldsToLnd
       !  use namespace in the exportState
       call NUOPC_AddNamespace(exportState, namespace=trim(instStr), &
-        nestedState=is%wrap%LND(i)%toState, rc=rc)
+        nestedState=is%wrap%LND(i)%extToState, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       !  advertise fields in the nested state
-      call field_advertise(is%wrap%LND(i)%allToFlds, is%wrap%LND(i)%toState, &
+      call field_advertise(is%wrap%LND(i)%allToFlds, is%wrap%LND(i)%extToState, &
         "cannot provide", rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -596,11 +591,11 @@ module Mediator
       is%wrap%HYD(i)%allFrFlds => fldsFrHyd
       !  use namespace in the importState
       call NUOPC_AddNamespace(importState, namespace=trim(instStr), &
-        nestedState=is%wrap%HYD(i)%frState, rc=rc)
+        nestedState=is%wrap%HYD(i)%extFrState, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       !  advertise fields in the nested state
-      call field_advertise(is%wrap%HYD(i)%allFrFlds, is%wrap%HYD(i)%frState, &
+      call field_advertise(is%wrap%HYD(i)%allFrFlds, is%wrap%HYD(i)%extFrState, &
         "cannot provide", rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -608,11 +603,11 @@ module Mediator
       is%wrap%HYD(i)%allToFlds => fldsToHyd
       !  use namespace in the exportState
       call NUOPC_AddNamespace(exportState, namespace=trim(instStr), &
-        nestedState=is%wrap%HYD(i)%toState, rc=rc)
+        nestedState=is%wrap%HYD(i)%extToState, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       !  advertise fields in the nested state
-      call field_advertise(is%wrap%HYD(i)%allToFlds, is%wrap%HYD(i)%toState, &
+      call field_advertise(is%wrap%HYD(i)%allToFlds, is%wrap%HYD(i)%extToState, &
         "cannot provide", rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1156,15 +1151,15 @@ module Mediator
         else
           instStr = "LND"
         endif
-        call MedState_LogWrite(is%wrap%LND(i)%frState, &
+        call MedState_LogWrite(is%wrap%LND(i)%extFrState, &
           "MED: fr"//trim(instStr),rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call MedState_LogWrite(is%wrap%LND(i)%toState, &
+        call MedState_LogWrite(is%wrap%LND(i)%extToState, &
           "MED: to"//trim(instStr),rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call MedDistGrid_LogWrite(is%wrap%LND(i)%frState, &
+        call MedDistGrid_LogWrite(is%wrap%LND(i)%extFrState, &
           "MED: fr"//trim(instStr),rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1175,15 +1170,15 @@ module Mediator
         else
           instStr = "HYD"
         endif
-        call MedState_LogWrite(is%wrap%HYD(i)%frState, &
+        call MedState_LogWrite(is%wrap%HYD(i)%extFrState, &
           "MED: fr"//trim(instStr),rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call MedState_LogWrite(is%wrap%HYD(i)%toState, &
+        call MedState_LogWrite(is%wrap%HYD(i)%extToState, &
           "MED: to"//trim(instStr),rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call MedDistGrid_LogWrite(is%wrap%HYD(i)%frState, &
+        call MedDistGrid_LogWrite(is%wrap%HYD(i)%extFrState, &
           "MED: fr"//trim(instStr),rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1231,11 +1226,11 @@ module Mediator
     is%wrap%maskToHYD = attValue
 
     ! Count Ensemble Members
-    call med_count_ensMembers(is%wrap%HYD(1)%toState, &
+    call med_count_ensMembers(is%wrap%HYD(1)%extToState, &
       mbrCount=is%wrap%mbrCntHyd, label="MED: toHYD", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_count_ensMembers(is%wrap%LND(1)%toState, &
+    call med_count_ensMembers(is%wrap%LND(1)%extToState, &
       mbrCount=is%wrap%mbrCntLnd, label="MED: toLND", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1311,25 +1306,69 @@ module Mediator
       line=__LINE__, file=__FILE__, rcToReturn=rc)) &
       return  ! bail out
 
-    ! Compute RHs
-    call med_compute_rh(srcCmpList=(/is%wrap%LND(1)/), dstCmp=is%wrap%HYD(1), &
-      conn=is%wrap%toHyd(1), label="MED: toHYD", mapping=is%wrap%remapDstHYD, &
-      srcMask=is%wrap%maskFrLND, dstMask=is%wrap%maskToHYD, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    call med_compute_rh(srcCmpList=(/is%wrap%HYD(1)/), dstCmp=is%wrap%LND(1), &
-      conn=is%wrap%toLND(1), label="MED: toLND", mapping=is%wrap%remapDstLND, &
-      srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (is%wrap%ensMap .eq. EMAP_ENSLND) then
+      call createScatterState(is%wrap%LND(1)%extFrState,&
+        is%wrap%LND(1)%intFrState, is%wrap%mbrCntLnd, &
+        label="MED: scatterFrLND", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call createScatterState(is%wrap%LND(1)%extToState,&
+        is%wrap%LND(1)%intToState, is%wrap%mbrCntLnd, &
+        label="MED: scatterToLND", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      allocate(is%wrap%HYD(1)%intToState(1))
+      allocate(is%wrap%HYD(1)%intFrState(1))
+      is%wrap%HYD(1)%intToState = is%wrap%HYD(1)%extToState
+      is%wrap%HYD(1)%intFrState = is%wrap%HYD(1)%extFrState
+    elseif (is%wrap%ensMap .eq. EMAP_ENSHYD) then
+      call createScatterState(is%wrap%HYD(1)%extFrState,&
+        is%wrap%HYD(1)%intFrState, is%wrap%mbrCntHYD, &
+        label="MED: scatterFrHYD", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call createScatterState(is%wrap%HYD(1)%extToState, &
+        is%wrap%HYD(1)%intToState, is%wrap%mbrCntHYD, &
+        label="MED: scatterToHYD", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      allocate(is%wrap%LND(1)%intToState(1))
+      allocate(is%wrap%LND(1)%intFrState(1))
+      is%wrap%LND(1)%intToState = is%wrap%LND(1)%extToState
+      is%wrap%LND(1)%intFrState = is%wrap%LND(1)%extFrState
+    elseif (is%wrap%ensMap .eq. EMAP_NOENSM) then
+      allocate(is%wrap%HYD(1)%intToState(1))
+      allocate(is%wrap%HYD(1)%intFrState(1))
+      allocate(is%wrap%LND(1)%intToState(1))
+      allocate(is%wrap%LND(1)%intFrState(1))
+      is%wrap%HYD(1)%intToState = is%wrap%HYD(1)%extToState
+      is%wrap%HYD(1)%intFrState = is%wrap%HYD(1)%extFrState
+      is%wrap%LND(1)%intToState = is%wrap%LND(1)%extToState
+      is%wrap%LND(1)%intFrState = is%wrap%LND(1)%extFrState
+      ! Compute RHs
+      call med_compute_rh(srcCmpList=(/is%wrap%LND(1)/), &
+        dstCmp=is%wrap%HYD(1), srcMember=1, dstMember=1, &
+        conn=is%wrap%toHyd(1), label="MED: toHYD", &
+        mapping=is%wrap%remapDstHYD, srcMask=is%wrap%maskFrLND, &
+        dstMask=is%wrap%maskToHYD, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call med_compute_rh(srcCmpList=(/is%wrap%HYD(1)/), &
+        dstCmp=is%wrap%LND(1), srcMember=1, dstMember=1, &
+        conn=is%wrap%toLND(1), label="MED: toLND", mapping=is%wrap%remapDstLND, &
+        srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
 
-    ! Initialize realized fields
-    call MedConn_DataReset(is%wrap%toLND(1), resetValue=LISHYDRO_INITVAL, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    call MedConn_DataReset(is%wrap%toHYD(1), resetValue=LISHYDRO_INITVAL, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+      ! Initialize realized fields
+      call MedConn_DataReset(is%wrap%toLND(1), resetValue=LISHYDRO_INITVAL, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call MedConn_DataReset(is%wrap%toHYD(1), resetValue=LISHYDRO_INITVAL, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+    endif
 
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1489,7 +1528,7 @@ module Mediator
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       ! Set the max size of from tmpFields
-      call ESMF_StateGet(cmp%frState, nestedFlag=.true., &
+      call ESMF_StateGet(cmp%extFrState, nestedFlag=.true., &
         itemCount=itemCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1500,14 +1539,14 @@ module Mediator
       ! Find connected from fields
       connCount = 0
       do i=1, size(cmp%allFrFlds)
-        call ESMF_StateGet(cmp%frState, itemName=cmp%allFrFlds(i)%stateName, &
+        call ESMF_StateGet(cmp%extFrState, itemName=cmp%allFrFlds(i)%stateName, &
           itemType=itemType, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
         if (itemType .eq. ESMF_STATEITEM_FIELD) then
           connCount = connCount + 1
           tmpFlds(connCount) = cmp%allFrFlds(i)
-          call ESMF_StateGet(cmp%frState, itemName=cmp%allFrFlds(i)%stateName, &
+          call ESMF_StateGet(cmp%extFrState, itemName=cmp%allFrFlds(i)%stateName, &
             field=field, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1541,7 +1580,7 @@ module Mediator
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       ! Set the max size of to tmpFields
-      call ESMF_StateGet(cmp%toState, nestedFlag=.true., &
+      call ESMF_StateGet(cmp%extToState, nestedFlag=.true., &
         itemCount=itemCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1554,14 +1593,14 @@ module Mediator
       ! Find connected to fields
       connCount = 0
       do i=1, size(cmp%allToFlds)
-        call ESMF_StateGet(cmp%toState, itemName=cmp%allToFlds(i)%stateName, &
+        call ESMF_StateGet(cmp%extToState, itemName=cmp%allToFlds(i)%stateName, &
           itemType=itemType, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
         if (itemType .eq. ESMF_STATEITEM_FIELD) then
           connCount = connCount + 1
           tmpFlds(connCount) = cmp%allToFlds(i)
-          call ESMF_StateGet(cmp%toState, itemName=cmp%allToFlds(i)%stateName, &
+          call ESMF_StateGet(cmp%extToState, itemName=cmp%allToFlds(i)%stateName, &
             field=field, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1663,10 +1702,88 @@ module Mediator
 
     !---------------------------------------------------------------------------
 
-    subroutine med_compute_rh(srcCmpList, dstCmp, label, conn, mapping, &
-      srcMask, dstMask, rc)
+    subroutine createScatterState(ensState, scEnsState, ensCount, label, rc)
+      ! Look at all of the fields in state, including in nested states. Create
+      ! new field without undistributed dimension and add to new state
+      type(ESMF_State), intent(in)                 :: ensState
+      type(ESMF_State), allocatable, intent(inout) :: scEnsState(:)
+      integer, intent(in)                          :: ensCount
+      character(*),intent(in)                      :: label
+      integer                                      :: rc
+      ! local variables
+      integer                                 :: i, j
+      integer                                 :: itemCount
+      integer                                 :: fieldCount
+      character(len=80), allocatable          :: itemNameList(:)
+      type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+      type(ESMF_Field)                        :: field
+      type(ESMF_Grid)                         :: grid
+      type(ESMF_Field)                        :: newfield
+
+      rc = ESMF_SUCCESS
+
+      if (allocated(scEnsState)) then
+        call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+          msg=trim(label)//" - Scatter ensemble state already allocated.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return ! bail out
+      else
+        allocate(scEnsState(ensCount))
+      endif
+
+      ! realize all the fields in the state (geoms have been transferred)
+      do i=1, ensCount
+        ! create empty state
+        scEnsState(i) = ESMF_StateCreate(rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
+
+      ! query info about the items in the state
+      call ESMF_StateGet(ensState, nestedFlag=.true., itemCount=itemCount, &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      allocate(itemNameList(itemCount), itemTypeList(itemCount))
+      call ESMF_StateGet(ensState, nestedFlag=.true., &
+        itemNameList=itemNameList, itemTypeList=itemTypeList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      do j=1, itemCount
+        if (itemTypeList(j)==ESMF_STATEITEM_FIELD) then
+          ! add field to field bundle
+          call ESMF_StateGet(ensState, field=field, &
+            itemName=itemNameList(i), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldGet(field, grid=grid, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          do i=1, ensCount
+            newfield = ESMF_FieldCreate(name=trim(itemNameList(i)), &
+              grid=grid, typekind=LISHYDRO_TYPEKIND, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+            call ESMF_StateAdd(scEnsState(i), fieldList=(/newfield/), rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          enddo
+        endif
+      enddo
+
+      deallocate(itemNameList, itemTypeList)
+
+    end subroutine
+
+    !---------------------------------------------------------------------------
+
+    subroutine med_compute_rh(srcCmpList, dstCmp, srcMember, dstMember, label, &
+      conn, mapping, srcMask, dstMask, rc)
       type(med_ext_conn_type),intent(in)    :: srcCmpList(:)
       type(med_ext_conn_type),intent(in)    :: dstCmp
+      integer,intent(in)                    :: srcMember
+      integer,intent(in)                    :: dstMember
       character(*),intent(in)               :: label
       type(med_int_conn_type),intent(inout) :: conn
       type(fieldRemapFlag),intent(in)       :: mapping
@@ -1674,6 +1791,7 @@ module Mediator
       type(fieldMaskFlag),intent(in)        :: dstMask
       integer,intent(out)                   :: rc
       ! local variables
+      integer :: l_member
       integer :: i, j, k
       logical :: fieldMatch
       type(ESMF_Field) :: srcFld, dstFld
@@ -1717,7 +1835,7 @@ module Mediator
         if (fieldMatch) then
           conn%srcFlds(k) = srcCmpList(j)%connFrFlds(i)
           conn%dstFlds(k) = dstCmp%connToFlds(k)
-          call ESMF_StateGet(srcCmpList(j)%frState, &
+          call ESMF_StateGet(srcCmpList(j)%intFrState(srcMember), &
             itemName=srcCmpList(j)%connFrFlds(i)%stateName, &
             field=srcFld, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1725,7 +1843,7 @@ module Mediator
           call ESMF_FieldBundleAdd(conn%srcFB, fieldList=(/srcFld/), rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
-          call ESMF_StateGet(dstCmp%toState, &
+          call ESMF_StateGet(dstCmp%intToState(dstMember), &
             itemName=dstCmp%connToFlds(k)%stateName, &
             field=dstFld, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -2477,10 +2595,10 @@ module Mediator
     !---------------------------
 
     do i=1, is%wrap%instCntLnd
-      call NUOPC_UpdateTimestamp(is%wrap%LND(i)%toState, mediatorClock, rc=rc)
+      call NUOPC_UpdateTimestamp(is%wrap%LND(i)%extToState, mediatorClock, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-!      call NUOPC_SetTimestamp(is%wrap%LND%toState, mediatorClock, rc=rc)
+!      call NUOPC_SetTimestamp(is%wrap%LND%extToState, mediatorClock, rc=rc)
 !      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
 !        line=__LINE__, file=__FILE__)) return  ! bail out
     enddo
@@ -2688,10 +2806,10 @@ module Mediator
     !---------------------------
 
     do i=1, is%wrap%instCntHyd
-      call NUOPC_UpdateTimestamp(is%wrap%HYD(i)%toState, mediatorClock, rc=rc)
+      call NUOPC_UpdateTimestamp(is%wrap%HYD(i)%extToState, mediatorClock, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-!      call NUOPC_SetTimestamp(is%wrap%HYD%toState, mediatorClock, rc=rc)
+!      call NUOPC_SetTimestamp(is%wrap%HYD%extToState, mediatorClock, rc=rc)
 !      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
 !        line=__LINE__, file=__FILE__)) return  ! bail out
     enddo
@@ -2712,6 +2830,7 @@ module Mediator
     type(ESMF_Clock)          :: mediatorClock
     type(ESMF_Time)           :: currTime
     character(len=40)         :: currTimeString
+    integer                   :: i
     integer                   :: stat
 
     rc = ESMF_SUCCESS
@@ -2763,6 +2882,58 @@ module Mediator
     call ESMF_GridCompGetInternalState(mediator, is, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+
+    do i=1, size(is%wrap%toHYD)
+      deallocate(is%wrap%toHYD(i)%srcFlds, is%wrap%toHYD(i)%dstFlds, &
+        stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of mediator internal fields memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
+    enddo
+    do i=1, size(is%wrap%toLND)
+      deallocate(is%wrap%toLND(i)%srcFlds, is%wrap%toLND(i)%dstFlds, &
+        stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of mediator internal fields memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
+    enddo
+
+    deallocate(is%wrap%toHyd, is%wrap%toLnd, stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of mediator internal connection memory failed.", &
+      line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+      return  ! bail out
+
+    do i=1, size(is%wrap%HYD)
+      deallocate(is%wrap%HYD(i)%intToState, is%wrap%HYD(i)%intFrState, &
+        stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of mediator internal state memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
+      deallocate(is%wrap%HYD(i)%connFrFlds, is%wrap%HYD(i)%connToFlds, &
+        stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of mediator fields memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
+    enddo
+    do i=1, size(is%wrap%LND)
+      deallocate(is%wrap%LND(i)%intToState, is%wrap%LND(i)%intFrState, &
+        stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of mediator internal state memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
+      deallocate(is%wrap%LND(i)%connFrFlds, is%wrap%LND(i)%connToFlds, &
+        stat=stat)
+      if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+        msg="Deallocation of mediator fields memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
+    enddo
 
     ! deallocate component instances
     deallocate(is%wrap%LND, is%wrap%HYD, stat=stat )

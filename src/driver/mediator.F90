@@ -1298,15 +1298,14 @@ module Mediator
       return ! bail out
     endif
 
-    allocate(is%wrap%toHyd(is%wrap%mbrCntHyd), &
-             is%wrap%toLnd(is%wrap%mbrCntLnd), &
-             stat=stat )
-    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
-      msg="Allocation of component member connection memory failed.", &
-      line=__LINE__, file=__FILE__, rcToReturn=rc)) &
-      return  ! bail out
-
     if (is%wrap%ensMap .eq. EMAP_ENSLND) then
+      allocate(is%wrap%toLnd(is%wrap%mbrCntLnd), &
+               is%wrap%toHyd(is%wrap%instCntHyd), &
+               stat=stat )
+      if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+        msg="Allocation of component member connection memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
       call createScatterState(is%wrap%LND(1)%extFrState,&
         is%wrap%LND(1)%intFrState, is%wrap%mbrCntLnd, &
         label="MED: scatterFrLND", rc=rc)
@@ -1321,7 +1320,37 @@ module Mediator
       allocate(is%wrap%HYD(1)%intFrState(1))
       is%wrap%HYD(1)%intToState = is%wrap%HYD(1)%extToState
       is%wrap%HYD(1)%intFrState = is%wrap%HYD(1)%extFrState
+      ! Compute RHs
+      do i=1, is%wrap%instCntHyd
+        call med_compute_rh(srcCmpList=(/is%wrap%LND(1)/), &
+          dstCmp=is%wrap%HYD(i), srcMember=i, dstMember=1, &
+          conn=is%wrap%toHyd(i), label="MED: toHYD", &
+          mapping=is%wrap%remapDstHYD, srcMask=is%wrap%maskFrLND, &
+          dstMask=is%wrap%maskToHYD, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call med_compute_rh(srcCmpList=(/is%wrap%HYD(i)/), &
+          dstCmp=is%wrap%LND(1), srcMember=i, dstMember=1, &
+          conn=is%wrap%toLND(i), label="MED: toLND", mapping=is%wrap%remapDstLND, &
+          srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        ! Initialize realized fields
+        call MedConn_DataReset(is%wrap%toLND(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call MedConn_DataReset(is%wrap%toHYD(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
     elseif (is%wrap%ensMap .eq. EMAP_ENSHYD) then
+      allocate(is%wrap%toLnd(is%wrap%instCntLnd), &
+               is%wrap%toHyd(is%wrap%mbrCntHyd), &
+               stat=stat )
+      if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+        msg="Allocation of component member connection memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
       call createScatterState(is%wrap%HYD(1)%extFrState,&
         is%wrap%HYD(1)%intFrState, is%wrap%mbrCntHYD, &
         label="MED: scatterFrHYD", rc=rc)
@@ -1336,7 +1365,37 @@ module Mediator
       allocate(is%wrap%LND(1)%intFrState(1))
       is%wrap%LND(1)%intToState = is%wrap%LND(1)%extToState
       is%wrap%LND(1)%intFrState = is%wrap%LND(1)%extFrState
+      ! Compute RHs
+      do i=1, is%wrap%instCntLnd
+        call med_compute_rh(srcCmpList=(/is%wrap%LND(i)/), &
+          dstCmp=is%wrap%HYD(1), srcMember=1, dstMember=i, &
+          conn=is%wrap%toHyd(i), label="MED: toHYD", &
+          mapping=is%wrap%remapDstHYD, srcMask=is%wrap%maskFrLND, &
+          dstMask=is%wrap%maskToHYD, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call med_compute_rh(srcCmpList=(/is%wrap%HYD(1)/), &
+          dstCmp=is%wrap%LND(i), srcMember=i, dstMember=1, &
+          conn=is%wrap%toLND(i), label="MED: toLND", mapping=is%wrap%remapDstLND, &
+          srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        ! Initialize realized fields
+        call MedConn_DataReset(is%wrap%toLND(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call MedConn_DataReset(is%wrap%toHYD(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
     elseif (is%wrap%ensMap .eq. EMAP_NOENSM) then
+      allocate(is%wrap%toLnd(1), &
+               is%wrap%toHyd(1), &
+               stat=stat )
+      if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+        msg="Allocation of component member connection memory failed.", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)) &
+        return  ! bail out
       allocate(is%wrap%HYD(1)%intToState(1))
       allocate(is%wrap%HYD(1)%intFrState(1))
       allocate(is%wrap%LND(1)%intToState(1))
@@ -1359,7 +1418,6 @@ module Mediator
         srcMask=is%wrap%maskFrHYD, dstMask=is%wrap%maskToLND, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-
       ! Initialize realized fields
       call MedConn_DataReset(is%wrap%toLND(1), resetValue=LISHYDRO_INITVAL, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1367,8 +1425,7 @@ module Mediator
       call MedConn_DataReset(is%wrap%toHYD(1), resetValue=LISHYDRO_INITVAL, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-
-    endif
+    endif ! is%wrap%ensMap
 
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -2408,6 +2465,7 @@ module Mediator
     type(ESMF_Clock)          :: mediatorClock
     type(ESMF_Time)           :: currTime
     character(len=40)         :: currTimeString
+    integer                   :: i
 
     rc = ESMF_SUCCESS
 
@@ -2471,24 +2529,26 @@ module Mediator
     endif
 
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
-    if (is%wrap%remapDstLND .eq. FLD_REMAP_BILINR) then
-      call ESMF_FieldBundleRegrid(is%wrap%toLND(1)%srcFB, is%wrap%toLND(1)%dstFB, &
-        routehandle=is%wrap%toLND(1)%rhBilnr, &
-        zeroregion=ESMF_REGION_SELECT, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-    elseif (is%wrap%remapDstLND .eq. FLD_REMAP_REDIST) then
-      call ESMF_FieldBundleRedist(is%wrap%toLND(1)%srcFB,is%wrap%toLND(1)%dstFB, &
-        routehandle=is%wrap%toLND(1)%rhFcopy, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-    else
-      call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
-        msg="Remapping method has not been implemented.", &
-        line=__LINE__, file=__FILE__, rcToReturn=rc)
-      return
-    endif
+    do i=1, size(is%wrap%toLND)
+      if (is%wrap%remapDstLND .eq. FLD_REMAP_BILINR) then
+        call ESMF_FieldBundleRegrid(is%wrap%toLND(i)%srcFB, is%wrap%toLND(i)%dstFB, &
+          routehandle=is%wrap%toLND(i)%rhBilnr, &
+          zeroregion=ESMF_REGION_SELECT, &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      elseif (is%wrap%remapDstLND .eq. FLD_REMAP_REDIST) then
+        call ESMF_FieldBundleRedist(is%wrap%toLND(i)%srcFB,is%wrap%toLND(i)%dstFB, &
+          routehandle=is%wrap%toLND(i)%rhFcopy, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      else
+        call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+          msg="Remapping method has not been implemented.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+    enddo
 
     ! scatter to other instances
     if (is%wrap%multiInstLnd) then
@@ -2619,6 +2679,7 @@ module Mediator
     type(ESMF_Clock)          :: mediatorClock
     type(ESMF_Time)           :: currTime
     character(len=40)         :: currTimeString
+    integer                   :: i
 
     rc = ESMF_SUCCESS
 
@@ -2682,24 +2743,26 @@ module Mediator
     endif
 
     ! HERE THE MEDIATOR ADVANCES: currTime -> currTime + timeStep
-    if (is%wrap%remapDstHYD .eq. FLD_REMAP_BILINR) then
-      call ESMF_FieldBundleRegrid(is%wrap%toHYD(1)%srcFB, is%wrap%toHYD(1)%dstFB, &
-        routehandle=is%wrap%toHYD(1)%rhBilnr, &
-        zeroregion=ESMF_REGION_SELECT, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-    elseif (is%wrap%remapDstHYD .eq. FLD_REMAP_REDIST) then
-      call ESMF_FieldBundleRedist(is%wrap%toHYD(1)%srcFB, is%wrap%toHYD(1)%dstFB, &
-        routehandle=is%wrap%toHYD(1)%rhFcopy, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-    else
-      call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
-        msg="Remapping method has not been implemented.", &
-        line=__LINE__, file=__FILE__, rcToReturn=rc)
-      return
-    endif
+    do i=1, size(is%wrap%toHYD)
+      if (is%wrap%remapDstHYD .eq. FLD_REMAP_BILINR) then
+        call ESMF_FieldBundleRegrid(is%wrap%toHYD(i)%srcFB, is%wrap%toHYD(i)%dstFB, &
+          routehandle=is%wrap%toHYD(i)%rhBilnr, &
+          zeroregion=ESMF_REGION_SELECT, &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      elseif (is%wrap%remapDstHYD .eq. FLD_REMAP_REDIST) then
+        call ESMF_FieldBundleRedist(is%wrap%toHYD(i)%srcFB, is%wrap%toHYD(i)%dstFB, &
+          routehandle=is%wrap%toHYD(i)%rhFcopy, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      else
+        call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+          msg="Remapping method has not been implemented.", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+    enddo
 
     ! scatter to other instances
     if (is%wrap%multiInstHyd) then

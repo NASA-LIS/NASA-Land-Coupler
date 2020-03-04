@@ -2028,6 +2028,7 @@ module Mediator
     integer                      :: fieldCount
     type(ESMF_Field),allocatable :: fieldList(:)
     type(ESMF_Clock)             :: mediatorClock
+    character(10)                :: instStr
     type(ESMF_Time)              :: currTime
     character(len=40)            :: currTimeString
     character(ESMF_MAXSTR)       :: msg
@@ -2254,34 +2255,52 @@ module Mediator
     if (allSatisfied) then
       ! write src field bundle
       if (btest(diagnostic,16)) then
-        call ESMF_FieldBundleWrite(is%wrap%toLND(1)%srcFB, &
-          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                   trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
-          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%srcFB, &
-          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                   trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
-          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleWrite(is%wrap%toLND(1)%dstFB, &
-          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                   trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
-          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%dstFB, &
-          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                   trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
-          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
+        do i=1, is%wrap%instCntHyd
+          if (is%wrap%multiInstHyd) then
+            write(instStr,"(A4,I"//trim(is%wrap%hydStrFmt)//")") "HYD-",i
+          else
+            instStr = "HYD"
+          endif
+          call ESMF_FieldBundleWrite(is%wrap%HYD(i)%connFrFB, &
+            fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                     trim(rName)//"_"//trim(instStr)//"_Src_"// &
+                     trim(currTimeString)//".nc", &
+            singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+            timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldBundleWrite(is%wrap%HYD(i)%connToFB, &
+            fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                     trim(rName)//"_"//trim(instStr)//"_Dst_"// &
+                     trim(currTimeString)//".nc", &
+            singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+            timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        enddo
+        do i=1, is%wrap%instCntLnd
+          if (is%wrap%multiInstLnd) then
+            write(instStr,"(A4,I"//trim(is%wrap%lndStrFmt)//")") "LND-",i
+          else
+            instStr = "LND"
+          endif
+          call ESMF_FieldBundleWrite(is%wrap%LND(i)%connFrFB, &
+            fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                     trim(rName)//"_"//trim(instStr)//"_Src_"// &
+                     trim(currTimeString)//".nc", &
+            singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+            timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldBundleWrite(is%wrap%LND(i)%connToFB, &
+            fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                     trim(rName)//"_"//trim(instStr)//"_Dst_"// &
+                     trim(currTimeString)//".nc", &
+            singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+            timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        enddo
       endif
 
       ! indicate that data initialization is complete (breaking out of init-loop)
@@ -2463,6 +2482,7 @@ module Mediator
     character(len=40)         :: value
     integer                   :: verbosity, diagnostic
     type(ESMF_Clock)          :: mediatorClock
+    character(10)             :: instStr
     type(ESMF_Time)           :: currTime
     character(len=40)         :: currTimeString
     integer                   :: i
@@ -2519,13 +2539,21 @@ module Mediator
 
     ! write src field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toLND(1)%srcFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_LndSrc_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
+      do i=1, is%wrap%instCntLnd
+        if (is%wrap%multiInstLnd) then
+          write(instStr,"(A4,I"//trim(is%wrap%lndStrFmt)//")") "LND-",i
+        else
+          instStr = "LND"
+        endif
+        call ESMF_FieldBundleWrite(is%wrap%LND(i)%connFrFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_"//trim(instStr)//"_Src_"// &
+                   trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
     endif
 
     if (is%wrap%ensMap .eq. EMAP_ENSHYD) then
@@ -2571,13 +2599,21 @@ module Mediator
 
     ! write dst field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toLND(1)%dstFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_LndDst_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
+      do i=1, is%wrap%instCntLnd
+        if (is%wrap%multiInstLnd) then
+          write(instStr,"(A4,I"//trim(is%wrap%lndStrFmt)//")") "LND-",i
+        else
+          instStr = "LND"
+        endif
+        call ESMF_FieldBundleWrite(is%wrap%LND(i)%connToFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_"//trim(instStr)//"_Dst_"// &
+                   trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
     endif
 
   end subroutine
@@ -2689,6 +2725,7 @@ module Mediator
     character(len=40)         :: value
     integer                   :: verbosity, diagnostic
     type(ESMF_Clock)          :: mediatorClock
+    character(10)             :: instStr
     type(ESMF_Time)           :: currTime
     character(len=40)         :: currTimeString
     integer                   :: i
@@ -2745,13 +2782,21 @@ module Mediator
 
     ! write src field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%srcFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_HydSrc_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
+      do i=1, is%wrap%instCntHyd
+        if (is%wrap%multiInstHyd) then
+          write(instStr,"(A4,I"//trim(is%wrap%hydStrFmt)//")") "HYD-",i
+        else
+          instStr = "HYD"
+        endif
+        call ESMF_FieldBundleWrite(is%wrap%HYD(i)%connFrFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_"//trim(instStr)//"_Src_"// &
+                   trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
     endif
 
     if (is%wrap%ensMap .eq. EMAP_ENSLND) then
@@ -2797,13 +2842,21 @@ module Mediator
 
     ! write src field bundle
     if (btest(diagnostic,16)) then
-      call ESMF_FieldBundleWrite(is%wrap%toHYD(1)%dstFB, &
-        fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
-                 trim(rName)//"_HydDst_"//trim(currTimeString)//".nc", &
-        singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
-        timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
+      do i=1, is%wrap%instCntHyd
+        if (is%wrap%multiInstHyd) then
+          write(instStr,"(A4,I"//trim(is%wrap%hydStrFmt)//")") "HYD-",i
+        else
+          instStr = "HYD"
+        endif
+        call ESMF_FieldBundleWrite(is%wrap%HYD(i)%connToFB, &
+          fileName=trim(is%wrap%dirOutput)//"/diag_"//trim(name)//"_"// &
+                   trim(rName)//"_"//trim(instStr)//"_Dst_"// &
+                   trim(currTimeString)//".nc", &
+          singleFile=.true., overwrite=.true., status=ESMF_FILESTATUS_REPLACE, &
+          timeslice=1, iofmt=ESMF_IOFMT_NETCDF, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      enddo
     endif
 
   end subroutine

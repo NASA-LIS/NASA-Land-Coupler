@@ -13,7 +13,7 @@ pets_hyd: __PETLISTHYD__
 pets_med: __PETLISTMED__
 
 multi_instance_hyd: true
-instance_count_hyd: 2
+instance_count_hyd: 20
 
 # global clock
 time_step:  __TIMESTEP__
@@ -26,12 +26,66 @@ runSeq::
         LND
         LND -> MED
         MED prepHYD
-        MED -> HYD-1
-        MED -> HYD-2
-        HYD-1
-        HYD-2
-        HYD-1 -> MED
-        HYD-2 -> MED
+        MED -> HYD-01
+        MED -> HYD-02
+        MED -> HYD-03
+        MED -> HYD-04
+        MED -> HYD-05
+        MED -> HYD-06
+        MED -> HYD-07
+        MED -> HYD-08
+        MED -> HYD-09
+        MED -> HYD-10
+        MED -> HYD-11
+        MED -> HYD-12
+        MED -> HYD-13
+        MED -> HYD-14
+        MED -> HYD-15
+        MED -> HYD-16
+        MED -> HYD-17
+        MED -> HYD-18
+        MED -> HYD-19
+        MED -> HYD-20
+        HYD-01
+        HYD-02
+        HYD-03
+        HYD-04
+        HYD-05
+        HYD-06
+        HYD-07
+        HYD-08
+        HYD-09
+        HYD-10
+        HYD-11
+        HYD-12
+        HYD-13
+        HYD-14
+        HYD-15
+        HYD-16
+        HYD-17
+        HYD-18
+        HYD-19
+        HYD-20
+        HYD-01 -> MED
+        HYD-02 -> MED
+        HYD-03 -> MED
+        HYD-04 -> MED
+        HYD-05 -> MED
+        HYD-06 -> MED
+        HYD-07 -> MED
+        HYD-08 -> MED
+        HYD-09 -> MED
+        HYD-10 -> MED
+        HYD-11 -> MED
+        HYD-12 -> MED
+        HYD-13 -> MED
+        HYD-14 -> MED
+        HYD-15 -> MED
+        HYD-16 -> MED
+        HYD-17 -> MED
+        HYD-18 -> MED
+        HYD-19 -> MED
+        HYD-20 -> MED
         MED prepLND
         MED -> LND
     @
@@ -87,3 +141,4 @@ hydAttributes::
   import_dependency = false
   output_directory = HYD_OUTPUT
 ::
+

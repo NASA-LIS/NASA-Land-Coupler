@@ -45,6 +45,9 @@ hydAttributes::
   domain_id = 1
   nest_to_nest = false
   import_dependency = false
+  write_restart = __WRRESTARTHYD__
+  read_restart = __RDRESTARTHYD__
+  input_directory = HYD_INPUT
   output_directory = HYD_OUTPUT
 ::
 

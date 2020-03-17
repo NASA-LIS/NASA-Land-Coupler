@@ -72,7 +72,7 @@ else
 endif
 
 # Check RUNCONFIG variable then set LISHYDRO_RUNCONFIG template file
-if (! $?RUNCONFIG) then       
+if (! $?RUNCONFIG) then
   echo "ERROR: RUNCONFIG variable is undefined. Check [$COMPSET_SETTINGS]"
   exit 1
 endif
@@ -174,7 +174,7 @@ if ($RUNCONFIG =~ *lnd*) then
     ln -s $DATA_LND/NOAHMP36_PARMS $RUNDIR/NOAHMP36_PARMS
     if (-d $DATA_LND/NOAHMP401_PARMS) then
        ln -s $DATA_LND/NOAHMP401_PARMS $RUNDIR/NOAHMP401_PARMS
-    endif 
+    endif
   else
     echo "ERROR: DATA_LND directory not found [$DATA_LND]"
     exit 1

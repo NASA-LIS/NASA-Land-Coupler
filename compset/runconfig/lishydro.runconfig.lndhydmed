@@ -45,7 +45,8 @@ connectorAttributes::
 medAttributes::
   Verbosity = 1
   Profiling = 0
-  RemapLND = FLD_REMAP_BILINR 
+  DataInitialization = __DATAINITMED__
+  RemapLND = FLD_REMAP_BILINR
   RemapHYD = FLD_REMAP_BILINR
   MaskFrLND = FLD_MASK_NNE
   MaskToLND = FLD_MASK_NNE
@@ -60,7 +61,7 @@ lndAttributes::
   realize_all_export = false
   config_file = lis.config
   nest_to_nest = false
-  import_dependency = false
+  import_dependency = __IMPDEPLND__
   output_directory = LND_OUTPUT
 ::
 
@@ -76,6 +77,9 @@ hydAttributes::
   domain_id = 1
   nest_to_nest = false
   import_dependency = false
+  write_restart = __WRRESTARTHYD__
+  read_restart = __RDRESTARTHYD__
+  input_directory = HYD_INPUT
   output_directory = HYD_OUTPUT
 ::
 

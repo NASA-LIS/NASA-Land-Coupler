@@ -31,7 +31,7 @@ endif
 # Generate Compset List
 set COMPSET_FILES=`find $DIR_SETNGS -maxdepth 1 -type f -name '*' | sort`
 set COMPSET_LIST=`echo $COMPSET_FILES | sed "s/$DIR_SETNGS\///g"`
-if ($#argv != 1) then
+if ($#argv <= 1) then
     echo "Usage $0 <compset>"
     echo "Available compsets:"
     foreach available (${COMPSET_LIST})
@@ -40,6 +40,17 @@ if ($#argv != 1) then
     exit 1
 else
     set COMPSET=$1
+    #Added Flag for Intel 19; SLES12
+    if ($#argv == 2) then
+        set CONFIG_TYP=$2
+	if ($SYST_NAME == "discover") then
+            #Update to new compiler:
+	    if ($CONFIG_TYP == "SLES12") then
+                set COMP_VERS="intel19"
+                echo "USING INTEL19 COMPILER FOR SLES12"
+            endif
+        endif		
+    endif
 endif
 
 # Include compset settings
@@ -88,6 +99,9 @@ endif
 
 # Set LISHYDRO_RUNSCRIPT template file
 set LISHYDRO_RUNSCRIPT="./$DIR_RUNSCP/run.csh.$HOSTNAME"
+if ($COMP_VERS == "intel19") then
+    set LISHYDRO_RUNSCRIPT="./$DIR_RUNSCP/run.csh.$HOSTNAME.19"
+endif
 if (! -f $LISHYDRO_RUNSCRIPT) then
     echo "ERROR: LISHYDRO_RUNSCRIPT file is missing [$LISHYDRO_RUNSCRIPT]"
     exit 1

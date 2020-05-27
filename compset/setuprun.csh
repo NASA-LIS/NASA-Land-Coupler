@@ -31,7 +31,7 @@ endif
 # Generate Compset List
 set COMPSET_FILES=`find $DIR_SETNGS -maxdepth 1 -type f -name '*' | sort`
 set COMPSET_LIST=`echo $COMPSET_FILES | sed "s/$DIR_SETNGS\///g"`
-if ($#argv <= 1) then
+if ($#argv < 1) then
     echo "Usage $0 <compset>"
     echo "Available compsets:"
     foreach available (${COMPSET_LIST})

@@ -21,7 +21,7 @@ else if ($HOSTNAME =~ *discover*) then
     set DATA_ROOT="/discover/nobackup/projects/nu-wrf/lishydro/data"
     set BATCH_SYS="sbatch"
     set CPPERNODE=28
-    set COMP_VERS="intel14"
+    set COMP_VERS="intel19"
     set SYST_NAME="discover"
 else
     echo "ERROR: Unsupported machine - no data directory found."
@@ -40,16 +40,10 @@ if ($#argv < 1) then
     exit 1
 else
     set COMPSET=$1
-    #Added Flag for Intel 19; SLES12
-    if ($#argv == 2) then
-        set CONFIG_TYP=$2
-	if ($SYST_NAME == "discover") then
-            #Update to new compiler:
-	    if ($CONFIG_TYP == "SLES12") then
-                set COMP_VERS="intel19"
-                echo "USING INTEL19 COMPILER FOR SLES12"
-            endif
-        endif		
+    if ($#argv >= 2) then
+        #Update to new compiler:
+        set COMP_VERS="$2"
+        echo "USING ${COMP_VERS} COMPILER ON ${SYST_NAME}"
     endif
 endif
 

@@ -1,5 +1,26 @@
 # lishydro
-Coupled hydrological application with LIS and WRF-Hydro
+Coupled surface-hydrology application with data assimilation.
+
+## Components
+**LIS-Hydro Driver and Mediator**:
+The LIS-Hydro driver and mediator have been designed in collaboration by NOAA,
+NASA, and NCAR. The custom driver couples LIS and WRF-Hydro within the NUOPC
+framework. Coupled system configuration is controlled via settings in the
+*lishydro.runconfig*. The custom mediator couples an in memory ensemble to
+multiple instances of a component, which allows users to run a coupled ensemble
+entirely in memory. Each component is individually configured based on the needs
+of the component (see documentation for each component).
+
+**Land Information System (LIS)**:
+LIS is a land surface modeling framework devloped by NASA.<br/>
+<code>Documentation: https://lis.gsfc.nasa.gov/</code><br/>
+<code>Repository: https://github.com/NASA-LIS/LISF</code>
+
+**WRF-Hydro**:
+WRF-Hydro is a hydrometeorological and hydrologic modeling system
+developed by the research applications labratory at NCAR.<br/>
+<code>Documentation: https://ral.ucar.edu/projects/wrf_hydro/overview</code><br/>
+<code>Repository: https://github.com/NCAR/wrf_hydro_nwm_public</code>
 
 ## SSH keys
 We are using ssh URLs for cloning submodules, so you will
@@ -20,13 +41,6 @@ $ tcsh
 Clone the repository including the submodules. 
 ```
 $ git clone --recursive git@github.com:NESII/lishydro.git
-
-# this repository is also available on internal NASA GitHub
-# (must be on NASA network or have VPN access)
-# Using this repo is NOT recommended as most new development
-# occurs on the github.com repo, but this is listed here
-# for completeness, or in case an internal NASA version is needed
-$ git clone --recursive git@developer.nasa.gov:rsdunlap/lishydro.git
 ```
 
 Set LISHYDRO_DIR to location of cloned repository.
@@ -40,7 +54,7 @@ right one for your platform.
 
 **On Discover**:
 ```
-$ source $LISHYDRO_DIR/modules/build.discover.intel14 
+$ source $LISHYDRO_DIR/modules/build.discover.intel19
 ```
 
 **On Cheyenne**:

@@ -1,0 +1,5 @@
+build
+run
+*-INSTALL
+analysis/diffs
+analysis/plots

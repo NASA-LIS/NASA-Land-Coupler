@@ -12,8 +12,10 @@ usage () {
   printf "      'gnu.X.Y.Z'; default is system dependent.\n"
   printf "  --components=\"COMPONENT1,COMPONENT2...\"\n"
   printf "      components to include in build; delimited with ','\n"
-  printf "  --overwrite=SETTING\n"
-  printf "      overwrite setting; valid options are 'continue', 'clean'\n"
+  printf "  --continue\n"
+  printf "      continue with existing build\n"
+  printf "  --clean\n"
+  printf "      removes existing build; will override --continue\n"
   printf "  --build-dir=BUILD_DIR\n"
   printf "      build directory\n"
   printf "  --build-type=BUILD_TYPE\n"
@@ -36,7 +38,8 @@ settings () {
   printf "  SYSTEM=${SYSTEM}\n"
   printf "  COMPILER=${COMPILER}\n"
   if [ ! -z "${COMPONENTS}" ]; then printf "  COMPONENTS=${COMPONENTS}\n"; fi
-  if [ ! -z "${OVERWRITE}" ]; then printf "  OVERWRITE=${OVERWRITE}\n"; fi
+  printf "  CLEAN=${CLEAN}\n"
+  printf "  CONTINUE=${CONTINUE}\n"
   printf "  BUILD_TYPE=${BUILD_TYPE}\n"
   printf "  VERBOSE=${VERBOSE}\n"
   printf "\n"
@@ -52,12 +55,13 @@ find_system () {
 # default settings
 LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 BUILD_DIR=${LISHYDRO_DIR}/build
-INSTALL_DIR=${LISHYDRO_DIR}/install
+INSTALL_DIR=${LISHYDRO_DIR}/src/driver
 SYSTEM=""
 COMPILER=""
 COMPONENTS=""
-OVERWRITE=""
 BUILD_TYPE="release"
+CLEAN=false
+CONTINUE=false
 VERBOSE=false
 
 # required arguments
@@ -79,15 +83,18 @@ while :; do
     --components=?*) COMPONENTS=${1#*=} ;;
     --components) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --components=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --overwrite=?*) OVERWRITE=${1#*=} ;;
-    --overwrite) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --overwrite=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --build-dir=?*) BUILD_DIR=${1#*=} ;;
     --build-dir) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --build-dir=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --install-dir=?*) INSTALL_DIR=${1#*=} ;;
     --install-dir) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --install-dir=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
+    --clean) CLEAN=true ;;
+    --clean=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --clean=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --continue) CONTINUE=true ;;
+    --continue=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --continue=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --verbose|-v) VERBOSE=true ;;
     --verbose=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --verbose=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
@@ -137,26 +144,22 @@ fi
 source ${ENVFILE}
 
 # if build directory already exists then exist
-if [ -z "${OVERWRITE}" ]; then
-  if [ -d "${BUILD_DIR}" ]; then
-    printf "ERROR: Build directory exists.\n"
-    printf "  --overwrite=continue to continue existing build\n"
-    printf "  --overwrite=clean to remove existing build.\n"
-    exit 1
-  fi
-elif [ "${OVERWRITE}" = "continue" ]; then
-  printf "Continue build in directory\n"
-  printf "  BUILD_DIR=${BUILD_DIR}\n"
-  printf "\n"
-elif [ "${OVERWRITE}" = "clean" ]; then
+if [ "${CLEAN}" = true ]; then
   printf "Remove build directory\n"
   printf "  BUILD_DIR=${BUILD_DIR}\n"
   printf "\n"
   rm -rf ${BUILD_DIR}
+elif [ "${CONTINUE}" = true ]; then
+  printf "Continue build in directory\n"
+  printf "  BUILD_DIR=${BUILD_DIR}\n"
+  printf "\n"
 else
-  printf "ERROR: OVERWRITE has unknown argument.\n"
-  printf "  OVERWRITE=${OVERWRITE}\n"
-  exit 1
+  if [ -d "${BUILD_DIR}" ]; then
+    printf "ERROR: Build directory exists\n"
+    printf "  use option --continue to continue existing build\n"
+    printf "  use option --clean to remove existing build\n"
+    exit 1
+  fi
 fi
 mkdir -p ${BUILD_DIR}
 

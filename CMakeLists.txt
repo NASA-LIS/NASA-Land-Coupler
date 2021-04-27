@@ -42,7 +42,7 @@ target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST}/liblis_nuopc.a)
 target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST}/libwrfhydro_nuopc.a)
 target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST})
 target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST})
-install(TARGETS LISHydroApp DESTINATION bin)
+install(TARGETS LISHydroApp DESTINATION .)
 
 # find LIS dependencies
 find_package(LISDEPS MODULE REQUIRED)
@@ -64,3 +64,4 @@ target_link_libraries(LISHydroApp PUBLIC HDFEOS::GCTP)
 # NETCDF
 target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDF)
 target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDFF)
+

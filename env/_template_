@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# check for LISHYDRO source directory
+if [ -z "${LISHYDRO_DIR}" ] ; then
+  echo "ERROR: Please set LISHYDRO_DIR to root directory of cloned repository."
+  exit 1
+fi
+if [ ! -d "${LISHYDRO_DIR}" ]; then
+  echo "ERROR: ${LISHYDRO_DIR} directory does not exist."
+  exit 1
+fi
+
+# load modules as needed
+
+# LIS environment variables
+export LIS_SRC="${LISHYDRO_DIR}/src/LISF/lis"
+export LIS_ARCH=_SYSTEM_ARCH_
+export LIS_SPMD=_PARALLEL_OR_SERIAL_
+export LIS_FC=_FORTRAN_COMPILER_
+export LIS_CC=_C_COMPILER_
+export LIS_JASPER=_PATH_TO_JASPER_
+export LIS_ECCODES=_PATH_TO_ECCODES_
+export LIS_NETCDF=_PATH_TO_NETCDF_
+export LIS_HDF4=_PATH_TO_HDF4_
+export LIS_HDFEOS=_PATH_TO_HDFEOS_
+export LIS_HDF5=_PATH_TO_HDF5_
+export LIS_MODESMF=_PATH_TO_ESMF_MODDIR_
+export LIS_LIBESMF=_PATH_TO_ESMF_LIBDIR_
+export LIS_MINPACK=_PATH_TO_MINPACK_
+#export LIS_CRTM=""
+#export LIS_CRTM_PROF=""
+#export LIS_CMEM=""
+
+# WRFHYDRO environment variables
+export NETCDF="${LIS_NETCDF}"
+
+# LISHYDRO environment variables
+export CMAKE_C_COMPILER=_C_COMPILER_
+export CMAKE_CXX_COMPILER=_CXX_COMPILER_
+export CMAKE_Fortran_COMPILER=_FORTRAN_COMPILER_
+export LISHYDRO_LIS_INST="${LISHYDRO_DIR}/LIS-INSTALL"
+export LISHYDRO_WRFHYDRO_INST="${LISHYDRO_DIR}/WRFHydro-INSTALL"
+export ESMFMKFILE="${LIS_LIBESMF}/esmf.mk"
+export WRF_HYDRO="1"
+

@@ -32,10 +32,10 @@ https://help.github.com/articles/connecting-to-github-with-ssh/
 ## Clone Instructions
 These have been tested on **Discover (NASA)** and 
 **Cheyenne (NCAR)**.
-All instructions and scripts are based on tcsh, so go
+All instructions and scripts are based on bash, so go
 ahead and switch to it now.
 ```
-$ tcsh
+$ bash
 ```
 
 Clone the repository including the submodules. 
@@ -45,7 +45,7 @@ $ git clone --recursive git@github.com:NESII/lishydro.git
 
 Set LISHYDRO_DIR to location of cloned repository.
 ```
-$ setenv LISHYDRO_DIR /path/to/lishydro
+$ export LISHYDRO_DIR=/path/to/lishydro
 ```
 
 Source the modules and environment variables used for the build.
@@ -54,12 +54,12 @@ right one for your platform.
 
 **On Discover**:
 ```
-$ source $LISHYDRO_DIR/modules/build.discover.intel19
+$ source $LISHYDRO_DIR/env/discover.intel.19.1.0
 ```
 
 **On Cheyenne**:
 ```
-$ source $LISHYDRO_DIR/modules/build.cheyenne.intel17
+$ source $LISHYDRO_DIR/env/cheyenne.intel.17.0.1
 ```
 LIS and WRF-Hydro are included as git submodules. The following
 commands provide an alternative to using the --recursive git
@@ -113,7 +113,7 @@ Current supported compsets:
 **Setup Run Directory**
 ```
 $ cd $LISHYDRO_DIR/compset
-$ ./setuprun.csh <compset>
+$ ./setuprun.csh <compset> ! TBD: convert to bash
 ```
 This will create and populate a run directory in 
 *$LISHYDRO_DIR/run/&lt;compset&gt;*.

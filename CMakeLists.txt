@@ -36,8 +36,29 @@ if (DEFINED ENV{LISHYDRO_WRFHYDRO_INST} AND NOT DEFINED LISHYDRO_WRFHYDRO_INST)
   set(LISHYDRO_WRFHYDRO_INST $ENV{LISHYDRO_WRFHYDRO_INST} CACHE FILEPATH "Path to LISHYDRO_WRFHYDRO_INST")
 endif ()
 
+
+message("Build LIS:")
+message("  run: ${CMAKE_BUILD_TOOL} make nuopcinstall INSTPATH=${LISHYDRO_LIS_INST}")
+message("   in: ${CMAKE_CURRENT_SOURCE_DIR}/src/LISF/lis/runmodes/nuopc_cpl_mode")
+message("")
+
+add_custom_target(lis_nuopc
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/LISF/lis/runmodes/nuopc_cpl_mode"
+  COMMAND ${CMAKE_BUILD_TOOL} nuopcinstall INSTPATH=${LISHYDRO_LIS_INST})
+
+message("Build WRFHYDRO:")
+message("  run: ${CMAKE_BUILD_TOOL} make nuopcinstall INSTPATH=${LISHYDRO_WRFHYDRO_INST}")
+message("   in: ${CMAKE_CURRENT_SOURCE_DIR}/src/wrf_hydro_nwm/trunk/NDHMS/CPL/NUOPC_cpl")
+message("")
+
+add_custom_target(wrfhydro_nuopc
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/wrf_hydro_nwm/trunk/NDHMS/CPL/NUOPC_cpl"
+  COMMAND ${CMAKE_BUILD_TOOL} nuopcinstall INSTPATH=${LISHYDRO_WRFHYDRO_INST})
+
 add_executable(LISHydroApp ${lishydro_app_files})
 target_link_libraries(LISHydroApp PUBLIC ESMF)
+add_dependencies(LISHydroApp lis_nuopc)
+add_dependencies(LISHydroApp wrfhydro_nuopc)
 target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST}/liblis_nuopc.a)
 target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST}/libwrfhydro_nuopc.a)
 target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST})

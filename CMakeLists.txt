@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.2)
+cmake_minimum_required(VERSION 3.15.5)
 
 foreach(env_var IN ITEMS CMAKE_C_COMPILER CMAKE_CXX_COMPILER CMAKE_Fortran_COMPILER)
   if(NOT DEFINED ENV{${env_var}})
@@ -22,8 +22,6 @@ if (NOT ESMF_FOUND)
   message(FATAL_ERROR "ESMF library not found. Please set environment variable ESMFMKFILE.")
 endif (NOT ESMF_FOUND)
 
-find_package(ZLIB)
-
 list(APPEND lishydro_app_files
   src/driver/app.F90
   src/driver/driver.F90
@@ -31,33 +29,38 @@ list(APPEND lishydro_app_files
   src/driver/mediator.F90
 )
 
-set(LIS_MK ${CMAKE_CURRENT_SOURCE_DIR}/LIS-INSTALL/lis.mk)
-file(STRINGS ${LIS_MK} LIS_LIB REGEX "ESMF_DEP_LINK_OBJS" )
-file(STRINGS ${LIS_MK} LIS_INCLUDE REGEX "ESMF_DEP_INCPATH" )
-file(STRINGS ${LIS_MK} LIS_SHRD_LIBS REGEX "ESMF_DEP_SHRD_PATH" )
-string(REGEX REPLACE ".*=" "" LIS_LIB ${LIS_LIB})
-string(REGEX REPLACE ".*=" "" LIS_INCLUDE ${LIS_INCLUDE})
-string(REGEX REPLACE ".*=" "" LIS_SHRD_LIBS ${LIS_SHRD_LIBS})
-string(STRIP ${LIS_LIB} LIS_LIB)
-string(STRIP ${LIS_INCLUDE} LIS_INCLUDE)
-string(STRIP ${LIS_SHRD_LIBS} LIS_SHRD_LIBS)
- 
-set(WRFHYDRO_MK ${CMAKE_CURRENT_SOURCE_DIR}/WRFHydro-INSTALL/wrfhydro.mk)
-file(STRINGS ${WRFHYDRO_MK} WRFHYDRO_LIB REGEX "ESMF_DEP_LINK_OBJS" )
-file(STRINGS ${WRFHYDRO_MK} WRFHYDRO_INCLUDE REGEX "ESMF_DEP_INCPATH" )
-file(STRINGS ${WRFHYDRO_MK} WRFHYDRO_SHRD_LIBS REGEX "ESMF_DEP_SHRD_PATH" )
-string(REGEX REPLACE ".*=" "" WRFHYDRO_LIB ${WRFHYDRO_LIB})
-string(REGEX REPLACE ".*=" "" WRFHYDRO_INCLUDE ${WRFHYDRO_INCLUDE})
-string(REGEX REPLACE ".*=" "" WRFHYDRO_SHRD_LIBS ${WRFHYDRO_SHRD_LIBS})
-string(STRIP ${WRFHYDRO_LIB} WRFHYDRO_LIB)
-string(STRIP ${WRFHYDRO_INCLUDE} WRFHYDRO_INCLUDE)
-string(STRIP ${WRFHYDRO_SHRD_LIBS} WRFHYDRO_SHRD_LIBS)
+if (DEFINED ENV{LISHYDRO_LIS_INST} AND NOT DEFINED LISHYDRO_LIS_INST)
+  set(LISHYDRO_LIS_INST $ENV{LISHYDRO_LIS_INST} CACHE FILEPATH "Path to LISHYDRO_LIS_INST")
+endif ()
+if (DEFINED ENV{LISHYDRO_WRFHYDRO_INST} AND NOT DEFINED LISHYDRO_WRFHYDRO_INST)
+  set(LISHYDRO_WRFHYDRO_INST $ENV{LISHYDRO_WRFHYDRO_INST} CACHE FILEPATH "Path to LISHYDRO_WRFHYDRO_INST")
+endif ()
 
 add_executable(LISHydroApp ${lishydro_app_files})
 target_link_libraries(LISHydroApp PUBLIC ESMF)
-target_link_libraries(LISHydroApp PUBLIC ${LIS_LIB})
-target_link_libraries(LISHydroApp PUBLIC ${WRFHYDRO_LIB})
-target_link_libraries(LISHydroApp PUBLIC z)
-target_include_directories(LISHydroApp PUBLIC ${LIS_INCLUDE})
-target_include_directories(LISHydroApp PUBLIC ${WRFHYDRO_INCLUDE})
+target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST}/liblis_nuopc.a)
+target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST}/libwrfhydro_nuopc.a)
+target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST})
+target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST})
 install(TARGETS LISHydroApp DESTINATION bin)
+
+# find LIS dependencies
+find_package(LISDEPS MODULE REQUIRED)
+# JASPER
+target_link_libraries(LISHydroApp PUBLIC JASPER::JASPER)
+# ECCODES
+target_link_libraries(LISHydroApp PUBLIC ECCODES::ECCODES)
+target_link_libraries(LISHydroApp PUBLIC ECCODES::ECCODES_F90)
+# HDF4
+target_link_libraries(LISHydroApp PUBLIC HDF4::MFHDF)
+target_link_libraries(LISHydroApp PUBLIC HDF4::DF)
+# HDF5
+target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5)
+target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5_FORTRAN)
+target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5_HL)
+# HDFEOS
+target_link_libraries(LISHydroApp PUBLIC HDFEOS::HDFEOS)
+target_link_libraries(LISHydroApp PUBLIC HDFEOS::GCTP)
+# NETCDF
+target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDF)
+target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDFF)

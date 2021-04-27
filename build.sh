@@ -21,7 +21,7 @@ usage () {
   printf "      'relWithDebInfo'\n"
   printf "  --install-dir=INSTALL_DIR\n"
   printf "      installation prefix\n"
-  printf "  --verbose\n"
+  printf "  --verbose, -v\n"
   printf "      build with verbose output\n"
   printf "\n"
 }
@@ -88,7 +88,7 @@ while :; do
     --install-dir=?*) INSTALL_DIR=${1#*=} ;;
     --install-dir) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --install-dir=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --verbose) VERBOSE=true ;;
+    --verbose|-v) VERBOSE=true ;;
     --verbose=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --verbose=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     -?*) printf "ERROR: Unknown option $1\n"; usage; exit 1 ;;

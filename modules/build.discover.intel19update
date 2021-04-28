@@ -1,0 +1,43 @@
+if (! $?LISHYDRO_DIR) then       
+  echo "Error: Please set LISHYDRO_DIR to root directory of cloned repository."
+  exit 1
+endif
+
+if (! -d $LISHYDRO_DIR) then
+   echo "Error:  $LISHYDRO_DIR directory does not exist."
+   exit 1
+endif
+
+source $LISHYDRO_DIR/modules/modules.discover.intel19update
+
+# general
+setenv LISHYDRO_LIS_INST $LISHYDRO_DIR/LIS-INSTALL
+setenv LISHYDRO_WRFHYDRO_INST $LISHYDRO_DIR/WRFHydro-INSTALL
+
+# needed by LIS
+setenv LIS_SRC $LISHYDRO_DIR/LIS
+setenv LIS_ARCH linux_ifc
+setenv LIS_SPMD parallel
+setenv LIS_FC mpif90
+setenv LIS_CC mpicc
+setenv LIS_OPENJPEG /discover/nobackup/projects/lis/libs/openjpeg/2.3.0_intel-19.1.0.166_sles12.3
+setenv LIS_ECCODES /discover/nobackup/projects/lis/libs/ecCodes/2.7.0_intel-19.1.0.166_sles12.3
+setenv LIS_NETCDF /discover/nobackup/projects/lis/libs/netcdf/4.5.0_intel-19.1.0.166_sles12.3
+setenv LIS_HDF4 /discover/nobackup/projects/lis/libs/hdf4/4.2.13_intel-19.1.0.166_sles12.3
+setenv LIS_HDFEOS /discover/nobackup/projects/lis/libs/hdfeos2/2.19v1.00_intel-19.1.0.166_sles12.3
+setenv LIS_HDF5 /discover/nobackup/projects/lis/libs/hdf5/1.10.1_intel-19.1.0.166_sles12.3
+setenv LIS_MODESMF /discover/nobackup/projects/lis/libs/esmf/7.1.0r_intel-19.1.0.166_impi-20.0.0.166_sles12.3/mod/modO/Linux.intel.64.intelmpi.default
+setenv LIS_LIBESMF /discover/nobackup/projects/lis/libs/esmf/7.1.0r_intel-19.1.0.166_impi-20.0.0.166_sles12.3/lib/libO/Linux.intel.64.intelmpi.default
+setenv LIS_MINPACK 
+setenv LIS_CRTM 
+setenv LIS_CRTM_PROF
+setenv LIS_CMEM
+
+# needed by WRF-Hydro
+setenv NETCDF $LIS_NETCDF
+
+# needed by LIS and WRF-Hydro
+setenv ESMFMKFILE $LIS_LIBESMF/esmf.mk
+setenv WRF_HYDRO 1
+
+exit 0

@@ -36,7 +36,7 @@ settings () {
   printf "  BUILD_DIR=${BUILD_DIR}\n"
   printf "  INSTALL_DIR=${INSTALL_DIR}\n"
   printf "  SYSTEM=${SYSTEM}\n"
-  printf "  COMPILER=${COMPILER}\n"
+  printf "  COMPILER=${MYCOMPILER}\n"
   if [ ! -z "${COMPONENTS}" ]; then printf "  COMPONENTS=${COMPONENTS}\n"; fi
   printf "  CLEAN=${CLEAN}\n"
   printf "  CONTINUE=${CONTINUE}\n"
@@ -57,7 +57,7 @@ LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd 
 BUILD_DIR=${LISHYDRO_DIR}/build
 INSTALL_DIR=${LISHYDRO_DIR}/src/driver
 SYSTEM=""
-COMPILER=""
+MYCOMPILER=""
 COMPONENTS=""
 BUILD_TYPE="release"
 CLEAN=false
@@ -77,7 +77,7 @@ while :; do
     --system=?*) SYSTEM=${1#*=} ;;
     --system) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --system=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --compiler=?*) COMPILER=${1#*=} ;;
+    --compiler=?*) MYCOMPILER=${1#*=} ;;
     --compiler) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --compiler=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --components=?*) COMPONENTS=${1#*=} ;;
@@ -112,11 +112,11 @@ if [ -z "${SYSTEM}" ] ; then
 fi
 
 # automatically determine compiler
-if [ -z "${COMPILER}" ] ; then
+if [ -z "${MYCOMPILER}" ] ; then
   if [ "${SYSTEM}" = "discover" ]; then
-    COMPILER="intel.19.1.0"
+    MYCOMPILER="intel.19.1.0"
   elif [ "${SYSTEM}" = "cheyenne" ]; then
-    COMPILER="env.cheyenne.intel.17.0.1"
+    MYCOMPILER="intel.17.0.1"
   else
     printf "ERROR: no default compiler for ${SYSTEM}\n"
     printf "\n"
@@ -130,9 +130,9 @@ if [ "${VERBOSE}" = true ] ; then
 fi
 
 # load environment for this system/compiler combination
-ENVFILE="${LISHYDRO_DIR}/env/${SYSTEM}.${COMPILER}"
+ENVFILE="${LISHYDRO_DIR}/env/${SYSTEM}.${MYCOMPILER}"
 if [ ! -f "${ENVFILE}" ]; then
-  printf "ERROR: environment file does not exist for ${SYSTEM}.${COMPILER}\n"
+  printf "ERROR: environment file does not exist for ${SYSTEM}.${MYCOMPILER}\n"
   printf "Please select one of the following configurations\n"
   for f in "${LISHYDRO_DIR}/env"/*
   do

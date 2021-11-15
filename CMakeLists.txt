@@ -67,22 +67,31 @@ install(TARGETS LISHydroApp DESTINATION .)
 
 # find LIS dependencies
 find_package(LISDEPS MODULE REQUIRED)
-# JASPER
-target_link_libraries(LISHydroApp PUBLIC JASPER::JASPER)
-# ECCODES
-target_link_libraries(LISHydroApp PUBLIC ECCODES::ECCODES)
-target_link_libraries(LISHydroApp PUBLIC ECCODES::ECCODES_F90)
-# HDF4
-target_link_libraries(LISHydroApp PUBLIC HDF4::MFHDF)
-target_link_libraries(LISHydroApp PUBLIC HDF4::DF)
-# HDF5
-target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5)
-target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5_FORTRAN)
-target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5_HL)
-# HDFEOS
-target_link_libraries(LISHydroApp PUBLIC HDFEOS::HDFEOS)
-target_link_libraries(LISHydroApp PUBLIC HDFEOS::GCTP)
-# NETCDF
-target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDF)
-target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDFF)
+if (JASPER_FOUND) # JASPER
+  target_link_libraries(LISHydroApp PUBLIC JASPER::JASPER)
+endif ()
+if (GRIBAPI_FOUND) # GRIBAPI
+  target_link_libraries(LISHydroApp PUBLIC GRIBAPI::GRIBAPI)
+  target_link_libraries(LISHydroApp PUBLIC GRIBAPI::GRIBAPI_F90)
+elseif (ECCODES_FOUND) # ECCODES
+  target_link_libraries(LISHydroApp PUBLIC ECCODES::ECCODES)
+  target_link_libraries(LISHydroApp PUBLIC ECCODES::ECCODES_F90)
+endif ()
+if (HDF4_FOUND) # HDF4
+  target_link_libraries(LISHydroApp PUBLIC HDF4::MFHDF)
+  target_link_libraries(LISHydroApp PUBLIC HDF4::DF)
+endif ()
+if (HDF5_FOUND) # HDF5
+  target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5)
+  target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5_FORTRAN)
+  target_link_libraries(LISHydroApp PUBLIC HDF5::HDF5_HL)
+endif ()
+if (HDFEOS_FOUND) # HDFEOS
+  target_link_libraries(LISHydroApp PUBLIC HDFEOS::HDFEOS)
+  target_link_libraries(LISHydroApp PUBLIC HDFEOS::GCTP)
+endif ()
+if (NETCDF_FOUND) # NETCDF
+  target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDF)
+  target_link_libraries(LISHydroApp PUBLIC NETCDF::NETCDFF)
+endif ()
 

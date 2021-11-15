@@ -112,6 +112,10 @@ if [ "${INTERACTIVE}" = true ]; then
 else
   echo "" | ./configure
 fi
+if [ ! -f "make/configure.lis" ]; then
+  printf "ERROR: LIS configuration failed\n"
+  exit 1
+fi
 printf "\n"
 
 printf "*************************************************\n"
@@ -130,6 +134,10 @@ elif [[ "${MYCOMPILER}" == *"pgi"* ]]; then
   echo "1" | ./configure
 else
   printf "ERROR: compiler unknown ${MYCOMPILER}\n" 
+  exit 1
+fi
+if [ ! -f "macros" ]; then
+  printf "ERROR: WRFHYDRO configuration failed\n"
   exit 1
 fi
 printf "\n"

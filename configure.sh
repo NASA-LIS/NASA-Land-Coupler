@@ -10,8 +10,8 @@ usage () {
   printf "  --compiler=COMPILER\n"
   printf "      compiler to use; valid options are 'intel.X.Y.Z', \n"
   printf "      'gnu.X.Y.Z'; default is system dependent.\n"
-  printf "  --interactive\n"
-  printf "      run interactive configuration\n"
+  printf "  --auto\n"
+  printf "      run non-interactive configuration\n"
   printf "  --verbose, -v\n"
   printf "      build with verbose output\n"
   printf "\n"
@@ -40,8 +40,9 @@ find_system () {
 LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 SYSTEM=""
 MYCOMPILER=""
-INTERACTIVE=false
+INTERACTIVE=true
 VERBOSE=false
+RC=0
 
 # process arguments
 while :; do
@@ -53,9 +54,9 @@ while :; do
     --compiler=?*) MYCOMPILER=${1#*=} ;;
     --compiler) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --compiler=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --interactive) INTERACTIVE=true ;;
-    --interactive=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --interactive=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --auto) INTERACTIVE=false ;;
+    --auto=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --auto=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --verbose|-v) VERBOSE=true ;;
     --verbose=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --verbose=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
@@ -65,7 +66,7 @@ while :; do
   shift
 done
 
-set -eu
+set -u
 
 # automatically determine system
 if [ -z "${SYSTEM}" ] ; then
@@ -108,13 +109,12 @@ printf "***          LIS BUILD CONFIGURATION          ***\n"
 printf "*************************************************\n"
 cd $LISHYDRO_DIR/src/LISF/lis
 if [ "${INTERACTIVE}" = true ]; then
-  ./configure
+  ./configure; RC=$?
 else
-  echo "" | ./configure
+  echo "" | ./configure; RC=$?
 fi
 if [ ! -f "make/configure.lis" ]; then
-  printf "ERROR: LIS configuration failed\n"
-  exit 1
+  RC=1
 fi
 printf "\n"
 
@@ -123,23 +123,27 @@ printf "***       WRFHYDRO BUILD CONFIGURATION        ***\n"
 printf "*************************************************\n"
 cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
 if [ "${INTERACTIVE}" = true ]; then
-  ./configure
+  ./configure; RC=$?
 elif [[ "${MYCOMPILER}" == *"cray"* ]]; then
-  echo "6" | ./configure
+  echo "6" | ./configure; RC=$?
 elif [[ "${MYCOMPILER}" == *"intel"* ]]; then
-  echo "3" | ./configure
+  echo "3" | ./configure; RC=$?; echo $RC
 elif [[ "${MYCOMPILER}" == *"gnu"* ]]; then
-  echo "2" | ./configure
+  echo "2" | ./configure; RC=$?
 elif [[ "${MYCOMPILER}" == *"pgi"* ]]; then
-  echo "1" | ./configure
+  echo "1" | ./configure; RC=$?
 else
   printf "ERROR: compiler unknown ${MYCOMPILER}\n" 
   exit 1
 fi
 if [ ! -f "macros" ]; then
-  printf "ERROR: WRFHYDRO configuration failed\n"
-  exit 1
+  RC=1
 fi
 printf "\n"
+
+if [ $RC -ne 0 ]; then
+  printf "ERROR: configuration failed.\n"
+  exit 1
+fi
 
 exit 0

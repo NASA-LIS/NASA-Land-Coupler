@@ -9,23 +9,22 @@ usage () {
   printf "\n"
   printf "OPTIONS\n"
   printf "  --system=SYSTEM\n"
-  printf "      name of machine (e.g. 'discover', 'cheyenne'\n"
+  printf "      name of machine (e.g. 'discover', 'cheyenne')\n"
   printf "  --compiler=COMPILER\n"
   printf "      compiler to use; valid options are 'intel.X.Y.Z', \n"
   printf "      'gnu.X.Y.Z'; default is system dependent.\n"
-  printf "  --components=\"COMPONENT1,COMPONENT2...\"\n"
-  printf "      components to include in build; delimited with ','\n"
-  printf "  --continue\n"
-  printf "      continue with existing build\n"
-  printf "  --clean\n"
-  printf "      removes existing build; will override --continue\n"
-  printf "  --build-dir=BUILD_DIR\n"
-  printf "      build directory\n"
-  printf "  --build-type=BUILD_TYPE\n"
-  printf "      build type; valid options are 'debug', 'release',\n"
-  printf "      'relWithDebInfo'\n"
-  printf "  --install-dir=INSTALL_DIR\n"
-  printf "      installation prefix\n"
+  printf "  --dir-app=PATH\n"
+  printf "      application directory\n"
+  printf "  --data-root=PATH\n"
+  printf "      root directory for input data\n"
+  printf "  --batch-sys=BATCH_SYS\n"
+  printf "      batch system (e.g. 'sbatch', 'qsub')\n"
+  printf "  --cpu-per-node=CPPERNODE\n"
+  printf "      CPUs per node\n"
+  printf "  --list-usecases, -l\n"
+  printf "      list usecases and exit\n"
+  printf "  --help, -h\n"
+  printf "      print usage and exit\n"
   printf "  --verbose, -v\n"
   printf "      build with verbose output\n"
   printf "\n"
@@ -38,7 +37,7 @@ settings () {
   printf "  LISHYDRO_DIR=${LISHYDRO_DIR}\n"
   printf "  USECASE=${USECASE}\n"
   printf "  DIR_APP=${DIR_APP}\n"
-  printf "  DIR_SETNGS=${DIR_SETNGS}\n"
+  printf "  DIR_USECASES=${DIR_USECASES}\n"
   printf "  DIR_RUNCFG=${DIR_RUNCFG}\n"
   printf "  DIR_RUNSCP=${DIR_RUNSCP}\n"
   printf "  SYSTEM=${SYSTEM}\n"
@@ -58,7 +57,7 @@ find_system () {
 }
 
 list_usecases () {
-  local file_list=`find $DIR_SETNGS -maxdepth 1 -type f -name '*' | sort`
+  local file_list=`find $DIR_USECASES -maxdepth 1 -type f -name '*' | sort`
   printf "Available use cases:\n"
   for file in $file_list; do
     file=`basename $file`
@@ -70,9 +69,9 @@ list_usecases () {
 # default settings
 LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 DIR_APP=${LISHYDRO_DIR}/src/driver
-DIR_SETNGS="${LISHYDRO_DIR}/usecases/runsettings"
-DIR_RUNCFG="${LISHYDRO_DIR}/usecases/runconfig"
-DIR_RUNSCP="${LISHYDRO_DIR}/usecases/runscripts"
+DIR_USECASES="${LISHYDRO_DIR}/usecases"
+DIR_RUNCFG="${LISHYDRO_DIR}/templates/runconfig"
+DIR_RUNSCP="${LISHYDRO_DIR}/templates/runscripts"
 USECASE=""
 SYSTEM=""
 MYCOMPILER=""
@@ -84,7 +83,7 @@ ERROR=0
 
 # required arguments
 if [ "$#" -lt 1 ]; then
-  printf "ERROR: Missing USECASE.\n"; list_usecases; usage; exit 1
+  printf "ERROR: Missing USECASE.\n"; usage; list_usecases; exit 1
 elif [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   usage; exit 0
 fi
@@ -94,30 +93,26 @@ fi
 while [ ! -z "$1" ]; do
   case $1 in
     --help|-h) usage; exit 0 ;;
+    --list-usecases|-l) list_usecases; exit 0 ;;
     --system=?*) SYSTEM=${1#*=} ;;
-    --system) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --system=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
+    --system|--system=) printf "ERROR: $1 requires an argument.\n"
+                        usage; exit 1 ;;
     --compiler=?*) MYCOMPILER=${1#*=} ;;
-    --compiler) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --compiler=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --components=?*) COMPONENTS=${1#*=} ;;
-    --components) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --components=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --build-dir=?*) BUILD_DIR=${1#*=} ;;
-    --build-dir) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --build-dir=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --install-dir=?*) INSTALL_DIR=${1#*=} ;;
-    --install-dir) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --install-dir=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --clean) CLEAN=true ;;
-    --clean=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --clean=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --continue) CONTINUE=true ;;
-    --continue=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --continue=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --compiler|--compiler=) printf "ERROR: $1 requires an argument.\n"
+                            usage; exit 1 ;;
+    --dir-app=?*) DIR_APP=${1#*=} ;;
+    --dir-app|--dir-app=) printf "ERROR: $1 requires an argument.\n"
+                          usage; exit 1 ;;
+    --data-root=?*) DATA_ROOT=${1#*=} ;;
+    --data-root|--data-root=) printf "ERROR: $1 requires an argument.\n"
+                              usage; exit 1 ;;
+    --batch-sys=?*) BATCH_SYS=${1#*=} ;;
+    --batch-sys|--batch-sys=) printf "ERROR: $1 requires an argument.\n"
+                              usage; exit 1 ;;
+    --cpu-per-node=?*) CPPERNODE=${1#*=} ;;
+    --cpu-per-node|--cpu-per-node=) printf "ERROR: $1 requires an argument.\n"
+                                    usage; exit 1 ;;
     --verbose|-v) VERBOSE=true ;;
-    --verbose=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --verbose=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     -?*) printf "ERROR: Unknown option $1\n"; usage; exit 1 ;;
     *) if [ -z "${USECASE}" ] ; then
          USECASE=$1
@@ -207,7 +202,7 @@ fi
 source ${ENVFILE}
 
 # Include usecase settings
-USECASE_SETTINGS="$DIR_SETNGS/$USECASE"
+USECASE_SETTINGS="$DIR_USECASES/$USECASE"
 if [ ! -f $USECASE_SETTINGS ]; then
   echo "ERROR: Use case settings file is missing [$USECASE_SETTINGS]"
   list_usecases; exit 1

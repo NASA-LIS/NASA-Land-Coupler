@@ -6,7 +6,7 @@ Coupled surface-hydrology application with data assimilation.
 The LIS-Hydro driver and mediator have been designed in collaboration by NOAA,
 NASA, and NCAR. The custom driver couples LIS and WRF-Hydro within the NUOPC
 framework. Coupled system configuration is controlled via settings in the
-*lishydro.runconfig*. The custom mediator couples an in memory ensemble to
+*lishydro.runconfig* file. The custom mediator couples an in memory ensemble to
 multiple instances of a component, which allows users to run a coupled ensemble
 entirely in memory. Each component is individually configured based on the needs
 of the component (see documentation for each component).
@@ -40,92 +40,81 @@ $ bash
 
 Clone the repository including the submodules. 
 ```
-$ git clone --recursive git@github.com:NESII/lishydro.git
+$ git clone --recursive git@github.com:NESII/lishydro.git <directory>
 ```
 
-Set LISHYDRO_DIR to location of cloned repository.
-```
-$ export LISHYDRO_DIR=/path/to/lishydro
-```
-
-Source the modules and environment variables used for the build.
-There are options here for Discover and Cheyenne. Choose the
-right one for your platform.
-
-**On Discover**:
-```
-$ source $LISHYDRO_DIR/env/discover.intel.19.1.0
-```
-
-**On Cheyenne**:
-```
-$ source $LISHYDRO_DIR/env/cheyenne.intel.17.0.1
-```
 LIS and WRF-Hydro are included as git submodules. The following
 commands provide an alternative to using the --recursive git
 clone option.
 ```
-$ cd $LISHYDRO_DIR        # go into the cloned repository
+$ cd <directory>        # go into the cloned repository
 $ git submodule init
 $ git submodule update
 ```
 
 ## Build Instructions
 
-**Build LIS**
+**Configure Submodules**
+Configure LIS and WRFHYDRO using the *configure.sh* script. For more information
+run `./configure.sh --help`.
 ```
-$ cd $LISHYDRO_DIR/src/LISF/lis
-$ ./configure    # accept all the default options
-$ cd runmodes/nuopc_cpl_mode
-$ make nuopcinstall INSTPATH=$LISHYDRO_DIR/LIS-INSTALL
-```
-
-**Build WRF-Hydro**
-```
-$ cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
-$ ./configure   # select option 3: "ifort intel parallel"
-$ cd CPL/NUOPC_cpl
-$ make nuopcinstall INSTPATH=$LISHYDRO_DIR/WRFHydro-INSTALL
+$ ./configure.sh
 ```
 
-**Build Driver**
+**Build Application**
+Build LISHydroApp using the *build.sh* script. For more information run
+`./build.sh --help`. LISHydroApp will be installed into src/driver.
 ```
-$ cd $LISHYDRO_DIR/src/driver
-$ make
+$ ./build.sh
 ```
 
 ## Run Instructions
 
 **NOTE:  Runs are currently only supported on Discover and Cheyenne.**
 
-Individual configurations are called compsets and are
-located in the $LISHYDRO_DIR/compset directory. Compsets
-have the naming convention:  *runsettings/&lt;compset&gt;*.
+Use cases are preconfigured using settings in *usecases* directory and 
+preprocessed data. Input data, including configuration, domain, 
+and parameter files, is stored on Discover and Cheyenne 
 
-Current supported compsets:
+Current supported use cases:
 
-| Compset                      | Description                                              |
-| ---------------------------- | -------------------------------------------------------- |
-| frontrange.ldas              | WRF-Hydro standalone forced by LDAS output               |
-| irene.nldas2                 | LIS standalone forced by NLDAS                           |
-| coupled_tuolumne.noah.nldas2 | Coupled LIS, Mediator, and WRF-Hydro forced by NLDAS     |
+| Use Cases                                          | Description                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------ |
+| coupled\_irene.noahmp.nldas2                       | Coupled LIS-WRFHYDRO Hurricane Irene NoahMP v3.6             |
+| coupled\_irene.noah.nldas2                         | Coupled LIS-WRFHYDRO Hurricane Irene Noah v3.6               |
+| coupled\_irene\_noMed.noah.nldas2                  | Directly Coupled LIS-WRFHYDRO Hurricane Irene (No MED)       |
+| coupled\_tar.noahmp\_v4.0.1\_cold.nldas2           | Coupled LIS-WRFHYDRO Tar River NoahMP v4.0.1                 |
+| coupled\_tuolumne.ens002.noahmp.nldas2             | Coupled LIS-WRFHYDRO Tuolumne NoahMP v4.0.1 Ensemble         |
+| coupled\_tuolumne.ens020.noahmp\_v4.0.1\_da.nldas2 | Coupled LIS-WRFHYDRO Tuolumne NoahMP v4.0.1 Ensemble with DA |
+| coupled\_tuolumne.noahmp.nldas2                    | Coupled LIS-WRFHYDRO Tuolumne NoahMP v3.6                    |
+| coupled\_tuolumne.noahmp\_v4.0.1\_cold.nldas2      | Coupled LIS-WRFHYDRO Tuolumne NoahMP v4.0.1                  |
+| coupled\_tuolumne.noahmp\_v4.0.1\_da.nldas2        | Coupled LIS-WRFHYDRO Tuolumne NoahMP v4.0.1 with DA          |
+| coupled\_tuolumne.noah.nldas2                      | Coupled LIS-WRFHYDRO Tuolumne Noah v3.6                      |
+| coupled\_tuolumne\_noMed.noah.nldas2               | Directly Coupled LIS-WRFHYDRO Tuolumne (No MED)              |
+| sbys\_tuolumne\_hyd.ens002.ldas                    | Uncoupled LIS-WRFHYDRO Tuolumne Ensemble (2 member)          |
+| stdalone\_frontrange\_hyd.ldas                     | Standalone WRFHYDRO Frontrange                               |
+| stdalone\_irene\_lnd.nldas2                        | Standalone LIS Hurricane Irene                               |
+| stdalone\_tuolumne\_hyd.ldas                       | Standalone WRFHYDRO Tuolumne                                 |
+
 
 **Setup Run Directory**
+Preconfigured use cases can be set up using the *setuprun.sh* script.
+For more information run `./setuprun.sh --help`. For a list of use cases
+run `./setuprun.sh --list-usecases`.
 ```
-$ cd $LISHYDRO_DIR/compset
-$ ./setuprun.csh <compset> ! TBD: convert to bash
+$ ./setuprun.sh USECASE
 ```
 This will create and populate a run directory in 
-*$LISHYDRO_DIR/run/&lt;compset&gt;*.
+*run/&lt;usecase&gt;*.
 
 **Submit Run**
 
-The batch script *run.csh* can be modified if needed, for example
+The batch script *run.sh* can be modified if needed, for example
 to change the number of MPI tasks or the project number.
 ```
-$ cd $LISHYDRO_DIR/run/<compset>
-$ sbatch run.csh   # Discover - SLURM
-$ qsub run.csh     # Cheyenne - PBS
+$ cd run/<usecase>
+$ sbatch run.sh   # Discover - SLURM
+$ qsub run.sh     # Cheyenne - PBS
 ```
 This will submit the run to the batch queue.  Output
 will appear in the same directory.

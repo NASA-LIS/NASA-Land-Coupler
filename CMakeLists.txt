@@ -65,6 +65,8 @@ target_link_libraries(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST}/libwrfhydro_n
 target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_LIS_INST})
 target_include_directories(LISHydroApp PUBLIC ${LISHYDRO_WRFHYDRO_INST})
 install(TARGETS LISHydroApp DESTINATION .)
+list(APPEND lishydro_defs_private ESMF_VERSION_MAJOR=${ESMF_VERSION_MAJOR})
+target_compile_definitions(LISHydroApp PRIVATE "${lishydro_defs_private}")
 
 # find LIS dependencies
 find_package(LISDEPS MODULE REQUIRED)

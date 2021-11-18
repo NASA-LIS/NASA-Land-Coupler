@@ -217,11 +217,11 @@ fi
 if [ -z ${TASKS+x} ]; then
   echo "ERROR: TASKS must be set in $USECASE_SETTINGS"; exit 1
 else
-  REMAINDER=`expr $TASKS % $CPPERNODE`
+  REMAINDER=$(( $TASKS % $CPPERNODE ))
   if [ $REMAINDER -gt 0 ]; then
-    NODES=`expr $TASKS / $CPPERNODE + 1`
+    NODES=$(( $TASKS / $CPPERNODE + 1 ))
   else
-    NODES=`expr $TASKS / $CPPERNODE`
+    NODES=$(( $TASKS / $CPPERNODE ))
   fi
 fi
 

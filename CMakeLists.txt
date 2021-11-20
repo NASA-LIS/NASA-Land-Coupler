@@ -73,6 +73,9 @@ find_package(LISDEPS MODULE REQUIRED)
 if (JASPER_FOUND) # JASPER
   target_link_libraries(LISHydroApp PUBLIC JASPER::JASPER)
 endif ()
+if (OPENJPEG_FOUND) # OPENJPEG
+  target_link_libraries(LISHydroApp PUBLIC OPENJPEG::OPENJPEG)
+endif ()
 if (GRIBAPI_FOUND) # GRIBAPI
   target_link_libraries(LISHydroApp PUBLIC GRIBAPI::GRIBAPI)
   target_link_libraries(LISHydroApp PUBLIC GRIBAPI::GRIBAPI_F90)

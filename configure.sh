@@ -104,10 +104,18 @@ if [ ! -f "${ENVFILE}" ]; then
   exit 1
 fi
 source ${ENVFILE}
+
 printf "*************************************************\n"
 printf "***          LIS BUILD CONFIGURATION          ***\n"
 printf "*************************************************\n"
-cd $LISHYDRO_DIR/src/LISF/lis
+if [ ! -f "$LISHYDRO_DIR/src/LISF/lis/configure" ]; then
+  printf "ERROR: LIS configure file is missing\n"
+  printf "       \tgit submodule init\n" 
+  printf "       \tgit submodule update\n"
+  exit 1
+else
+  cd $LISHYDRO_DIR/src/LISF/lis
+fi
 if [ "${INTERACTIVE}" = true ]; then
   ./configure; RC=$?
 else
@@ -121,7 +129,14 @@ printf "\n"
 printf "*************************************************\n"
 printf "***       WRFHYDRO BUILD CONFIGURATION        ***\n"
 printf "*************************************************\n"
-cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
+if [ ! -f "$LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS/configure" ]; then
+  printf "ERROR: WRFHYDRO configure file is missing\n"
+  printf "       \tgit submodule init\n"
+  printf "       \tgit submodule update\n"
+  exit 1
+else
+  cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
+fi
 if [ "${INTERACTIVE}" = true ]; then
   ./configure; RC=$?
 elif [[ "${MYCOMPILER}" == *"cray"* ]]; then

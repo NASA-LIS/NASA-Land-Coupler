@@ -32,11 +32,6 @@ https://help.github.com/articles/connecting-to-github-with-ssh/
 ## Clone Instructions
 These have been tested on **Discover (NASA)** and 
 **Cheyenne (NCAR)**.
-All instructions and scripts are based on bash, so go
-ahead and switch to it now.
-```
-$ bash
-```
 
 Clone the repository including the submodules. 
 ```

@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# check for LISHYDRO source directory
+if [ -z "${LISHYDRO_DIR}" ] ; then
+  echo "ERROR: Please set LISHYDRO_DIR to root directory of cloned repository."
+  exit 1
+fi
+if [ ! -d "${LISHYDRO_DIR}" ]; then
+  echo "ERROR: ${LISHYDRO_DIR} directory does not exist."
+  exit 1
+fi
+
+# load modules
+module purge
+module load ncarenv/1.2
+module load intel/17.0.1
+module load ncarcompilers/0.4.1
+module load mpt/2.15f
+module load cmake/3.16.4
+module use -a /glade/p/ral/hap/drosen/projects/LISHydro/modulefiles/intel/17.0.1
+module load hdf5-lishydro/1.8.14
+module load netcdf-lishydro/4.3.3.1
+module load openjpeg-lishydro/2.3.0
+module load eccodes-lishydro/2.7.0
+module load esmf-lishydro/7.1.0
+module load hdf-lishydro/4.2.11
+module load hdfeos-lishydro/2.19v1.00
+module list
+
+# needed by LIS
+export LIS_SRC="${LISHYDRO_DIR}/LIS"
+export LIS_ARCH="linux_ifc"
+export LIS_SPMD="parallel"
+export LIS_FC="mpif90"
+export LIS_CC="mpicc"
+#export LIS_JASPER=""
+#export LIS_GRIBAPI=""
+#export LIS_NETCDF=""
+#export LIS_HDF4=""
+#export LIS_HDFEOS=""
+#export LIS_HDF5=""
+#export LIS_MODESMF=""
+#export LIS_LIBESMF=""
+#export LIS_MINPACK=""
+#export LIS_CRTM=""
+#export LIS_CRTM_PROF=""
+#export LIS_CMEM=""
+
+# WRFHYDRO environment variables
+export NETCDF="${LIS_NETCDF}"
+
+# LISHYDRO environment variables
+export CMAKE_C_COMPILER="mpicc"
+export CMAKE_CXX_COMPILER="mpicxx"
+export CMAKE_Fortran_COMPILER="mpif90"
+export LISHYDRO_LIS_INST="${LISHYDRO_DIR}/LIS-INSTALL"
+export LISHYDRO_WRFHYDRO_INST="${LISHYDRO_DIR}/WRFHydro-INSTALL"
+export ESMFMKFILE="${LIS_LIBESMF}/esmf.mk"
+export WRF_HYDRO="1"
+

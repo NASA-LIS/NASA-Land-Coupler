@@ -199,8 +199,7 @@ done
 shift $((OPTIND -1))
 
 if [ -z "${LISHYDRO_DIR+x}" ]; then
-   printf "ERROR: LISHYDRO_DIR is unset\n" 1>&2
-   exit 1
+  LISHYDRO_DIR="$(dirname `pwd`)"
 fi
 
 if [[ $# -ne 2 ]]; then

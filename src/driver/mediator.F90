@@ -2703,12 +2703,15 @@ module Mediator
     !---------------------------
 
     do i=1, is%wrap%instCntLnd
+#if ESMF_VERSION_MAJOR >= 8
+      call NUOPC_SetTimestamp(is%wrap%LND(i)%extToState, mediatorClock, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+#else
       call NUOPC_UpdateTimestamp(is%wrap%LND(i)%extToState, mediatorClock, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-!      call NUOPC_SetTimestamp(is%wrap%LND%extToState, mediatorClock, rc=rc)
-!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!        line=__LINE__, file=__FILE__)) return  ! bail out
+#endif
     enddo
 
   end subroutine
@@ -2946,12 +2949,15 @@ module Mediator
     !---------------------------
 
     do i=1, is%wrap%instCntHyd
+#if ESMF_VERSION_MAJOR >= 8
+      call NUOPC_SetTimestamp(is%wrap%HYD(i)%extToState, mediatorClock, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+#else
       call NUOPC_UpdateTimestamp(is%wrap%HYD(i)%extToState, mediatorClock, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-!      call NUOPC_SetTimestamp(is%wrap%HYD%extToState, mediatorClock, rc=rc)
-!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!        line=__LINE__, file=__FILE__)) return  ! bail out
+#endif
     enddo
 
   end subroutine

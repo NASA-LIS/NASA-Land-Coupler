@@ -1,5 +1,14 @@
 #!/bin/bash
-
+#-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------------
+# NASA Goddard Space Flight Center
+# NASA Land Coupler (NLC)
+# Version 0.5
+#
+# Copyright (c) 2022 United States Government as represented by the
+# Administrator of the National Aeronautics and Space Administration.
+# All Rights Reserved.
+# Licensed under Apache License 2.0.
+#-------------------------END NOTICE -- DO NOT EDIT-----------------------------
 INF_OPT=":hap:d:"
 INF_USG="Usage: $0 [-h] [-a] [-p PREFIX] [-d DIRECTORY] RUN_DIRECTORY"
 INF_HLP="Help:"

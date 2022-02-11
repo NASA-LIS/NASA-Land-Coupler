@@ -1,5 +1,14 @@
 #!/bin/bash
-
+#-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------------
+# NASA Goddard Space Flight Center
+# NASA Land Coupler (NLC)
+# Version 0.5
+#
+# Copyright (c) 2022 United States Government as represented by the
+# Administrator of the National Aeronautics and Space Administration.
+# All Rights Reserved.
+# Licensed under Apache License 2.0.
+#-------------------------END NOTICE -- DO NOT EDIT-----------------------------
 # usage instructions
 usage () {
   printf "Usage: $0 USECASE [OPTIONS]...\n"
@@ -246,7 +255,7 @@ fi
 # Check NLC_EXE
 NLC_EXE=${DIR_APP}/NLC.exe
 if [ ! -f $NLC_EXE ]; then
-  echo "ERROR: NLC executable does not exist."
+  echo "ERROR: NLC.exe executable does not exist."
   exit 1
 fi
 

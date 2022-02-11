@@ -21,7 +21,7 @@ usage () {
 settings () {
   printf "Settings:\n"
   printf "\n"
-  printf "  LISHYDRO_DIR=${LISHYDRO_DIR}\n"
+  printf "  NLC_DIR=${NLC_DIR}\n"
   printf "  SYSTEM=${SYSTEM}\n"
   printf "  COMPILER=${MYCOMPILER}\n"
   printf "  INTERACTIVE=${INTERACTIVE}\n"
@@ -37,7 +37,7 @@ find_system () {
 }
 
 # default settings
-LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
+NLC_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 SYSTEM=""
 MYCOMPILER=""
 INTERACTIVE=true
@@ -92,11 +92,11 @@ if [ "${VERBOSE}" = true ] ; then
 fi
 
 # load environment for this system/compiler combination
-ENVFILE="${LISHYDRO_DIR}/env/${SYSTEM}.${MYCOMPILER}"
+ENVFILE="${NLC_DIR}/env/${SYSTEM}.${MYCOMPILER}"
 if [ ! -f "${ENVFILE}" ]; then
   printf "ERROR: environment file does not exist for ${SYSTEM}.${MYCOMPILER}\n"
   printf "Please select one of the following configurations\n"
-  for f in "${LISHYDRO_DIR}/env"/*
+  for f in "${NLC_DIR}/env"/*
   do
     printf "  $(basename $f)\n"
   done
@@ -108,13 +108,13 @@ source ${ENVFILE}
 printf "*************************************************\n"
 printf "***          LIS BUILD CONFIGURATION          ***\n"
 printf "*************************************************\n"
-if [ ! -f "$LISHYDRO_DIR/src/LISF/lis/configure" ]; then
+if [ ! -f "$NLC_DIR/src/LISF/lis/configure" ]; then
   printf "ERROR: LIS configure file is missing\n"
   printf "       \tgit submodule init\n" 
   printf "       \tgit submodule update\n"
   exit 1
 else
-  cd $LISHYDRO_DIR/src/LISF/lis
+  cd $NLC_DIR/src/LISF/lis
 fi
 if [ "${INTERACTIVE}" = true ]; then
   ./configure; RC=$?
@@ -129,13 +129,13 @@ printf "\n"
 printf "*************************************************\n"
 printf "***       WRFHYDRO BUILD CONFIGURATION        ***\n"
 printf "*************************************************\n"
-if [ ! -f "$LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS/configure" ]; then
+if [ ! -f "$NLC_DIR/src/wrf_hydro_nwm/trunk/NDHMS/configure" ]; then
   printf "ERROR: WRFHYDRO configure file is missing\n"
   printf "       \tgit submodule init\n"
   printf "       \tgit submodule update\n"
   exit 1
 else
-  cd $LISHYDRO_DIR/src/wrf_hydro_nwm/trunk/NDHMS
+  cd $NLC_DIR/src/wrf_hydro_nwm/trunk/NDHMS
 fi
 if [ "${INTERACTIVE}" = true ]; then
   ./configure; RC=$?

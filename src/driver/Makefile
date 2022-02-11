@@ -26,28 +26,28 @@ include $(ESMFMKFILE)
 
 COMMA := ,
 
-### LIS-Hydro Build Directives ###
-LISHYDRO_OPTLEVEL = 1
-LISHYDRO_PRCLEVEL = 2
-LISHYDRO_DBGBUILD = 0
+### NASA Land Coupler Build Directives ###
+NLC_OPTLEVEL = 1
+NLC_PRCLEVEL = 2
+NLC_DBGBUILD = 0
 
-ifdef LISHYDRO_OPTLEVEL
- ESMF_F90COMPILECPPFLAGS += -DLISHYDRO_OPTLEVEL=$(LISHYDRO_OPTLEVEL)
- ESMF_CXXCOMPILECPPFLAGS += -DLISHYDRO_OPTLEVEL=$(LISHYDRO_OPTLEVEL)
+ifdef NLC_OPTLEVEL
+ ESMF_F90COMPILECPPFLAGS += -DNLC_OPTLEVEL=$(NLC_OPTLEVEL)
+ ESMF_CXXCOMPILECPPFLAGS += -DNLC_OPTLEVEL=$(NLC_OPTLEVEL)
 endif
 
-ifdef LISHYDRO_PRCLEVEL
- ESMF_F90COMPILECPPFLAGS += -DLISHYDRO_PRCLEVEL=$(LISHYDRO_PRCLEVEL)
- ESMF_CXXCOMPILECPPFLAGS += -DLISHYDRO_PRCLEVEL=$(LISHYDRO_PRCLEVEL)
+ifdef NLC_PRCLEVEL
+ ESMF_F90COMPILECPPFLAGS += -DNLC_PRCLEVEL=$(NLC_PRCLEVEL)
+ ESMF_CXXCOMPILECPPFLAGS += -DNLC_PRCLEVEL=$(NLC_PRCLEVEL)
 endif
 
-ifdef LISHYDRO_DBGBUILD
+ifdef NLC_DBGBUILD
  ESMF_F90COMPILEOPTS += -g -traceback
  ESMF_CXXCOMPILEOPTS += -g -traceback
 endif
 
 ### LIS dependencies ###
-include $(LISHYDRO_LIS_INST)/lis.mk
+include $(NLC_LIS_INST)/lis.mk
 DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_LND=$(ESMF_DEP_FRONT)
 DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
 DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
@@ -57,7 +57,7 @@ DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) \
 DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 
 ### WRF-Hydro dependencies ###
-include $(LISHYDRO_WRFHYDRO_INST)/wrfhydro.mk
+include $(NLC_WRFHYDRO_INST)/wrfhydro.mk
 DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_HYD=$(ESMF_DEP_FRONT)
 DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
 DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
@@ -86,7 +86,7 @@ DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 
 
 # -----------------------------------------------------------------------------
-LISHydroApp: app.o driver.o mediator.o fields.o
+NLC.exe: app.o driver.o mediator.o fields.o
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(DEP_LINK_OBJS) $(DEP_SHRD_PATH) $(DEP_SHRD_LIBS)
 
 # module dependencies:
@@ -100,7 +100,7 @@ mediator.o: fields.o
 dust:
 	rm -f PET*.ESMF_LogFile fort.*
 clean:
-	rm -f LISHydroApp *.o *.mod
+	rm -f NLC.exe *.o *.mod
 distclean: dust clean
 
 info:

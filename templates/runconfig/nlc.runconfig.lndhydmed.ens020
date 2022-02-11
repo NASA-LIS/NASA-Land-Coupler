@@ -1,6 +1,6 @@
-###############################################
-####  LISHydro runtime configuration      #####
-###############################################
+####################################################
+####  NASA Land Coupler runtime configuration  #####
+####################################################
 
 # optionally turn off a component (options are "yes" and "no")
 lnd: yes

@@ -32,7 +32,7 @@ usage () {
 settings () {
   printf "Settings:\n"
   printf "\n"
-  printf "  LISHYDRO_DIR=${LISHYDRO_DIR}\n"
+  printf "  NLC_DIR=${NLC_DIR}\n"
   printf "  BUILD_DIR=${BUILD_DIR}\n"
   printf "  INSTALL_DIR=${INSTALL_DIR}\n"
   printf "  SYSTEM=${SYSTEM}\n"
@@ -53,9 +53,9 @@ find_system () {
 }
 
 # default settings
-LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
-BUILD_DIR=${LISHYDRO_DIR}/build
-INSTALL_DIR=${LISHYDRO_DIR}/src/driver
+NLC_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
+BUILD_DIR=${NLC_DIR}/build
+INSTALL_DIR=${NLC_DIR}/src/driver
 SYSTEM=""
 MYCOMPILER=""
 COMPONENTS=""
@@ -130,11 +130,11 @@ if [ "${VERBOSE}" = true ] ; then
 fi
 
 # load environment for this system/compiler combination
-ENVFILE="${LISHYDRO_DIR}/env/${SYSTEM}.${MYCOMPILER}"
+ENVFILE="${NLC_DIR}/env/${SYSTEM}.${MYCOMPILER}"
 if [ ! -f "${ENVFILE}" ]; then
   printf "ERROR: environment file does not exist for ${SYSTEM}.${MYCOMPILER}\n"
   printf "Please select one of the following configurations\n"
-  for f in "${LISHYDRO_DIR}/env"/*
+  for f in "${NLC_DIR}/env"/*
   do
     printf "  $(basename $f)\n"
   done
@@ -177,7 +177,7 @@ fi
 
 # build the code
 cd ${BUILD_DIR}
-cmake ${LISHYDRO_DIR} -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} ${CMAKE_SETTINGS}
+cmake ${NLC_DIR} -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} ${CMAKE_SETTINGS}
 make -j ${BUILD_JOBS:-4} ${MAKE_SETTINGS}
 make install
 

@@ -15,7 +15,7 @@ program esmApp
   type(ESMF_GridComp)     :: esmComp
   
   ! Initialize ESMF
-  call ESMF_Initialize(logkindflag=LISHYDRO_LOGKIND, &
+  call ESMF_Initialize(logkindflag=NLC_LOGKIND, &
     defaultCalkind=ESMF_CALKIND_GREGORIAN, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &

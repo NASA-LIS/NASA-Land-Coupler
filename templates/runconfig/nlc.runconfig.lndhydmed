@@ -1,6 +1,6 @@
-###############################################
-####  LISHydro runtime configuration      #####
-###############################################
+####################################################
+####  NASA Land Coupler runtime configuration  #####
+####################################################
 
 # optionally turn off a component (options are "yes" and "no")
 lnd: yes
@@ -11,9 +11,6 @@ med: yes
 pets_lnd: __PETLISTLND__
 pets_hyd: __PETLISTHYD__
 pets_med: __PETLISTMED__
-
-multi_instance_hyd: true
-instance_count_hyd: 2
 
 # global clock
 time_step:  __TIMESTEP__
@@ -26,12 +23,9 @@ runSeq::
         LND
         LND -> MED
         MED prepHYD
-        MED -> HYD-1
-        MED -> HYD-2
-        HYD-1
-        HYD-2
-        HYD-1 -> MED
-        HYD-2 -> MED
+        MED -> HYD
+        HYD
+        HYD -> MED
         MED prepLND
         MED -> LND
     @
@@ -50,10 +44,8 @@ connectorAttributes::
 
 medAttributes::
   Verbosity = 1
-  Diagnostic = 0
   Profiling = 0
   DataInitialization = __DATAINITMED__
-  EnsembleMapping = __ENSMAP__
   RemapLND = FLD_REMAP_BILINR
   RemapHYD = FLD_REMAP_BILINR
   MaskFrLND = FLD_MASK_NNE
@@ -69,7 +61,6 @@ lndAttributes::
   realize_all_export = false
   config_file = lis.config
   nest_to_nest = false
-  coupled_ensemble = __CPLENSLND__
   import_dependency = __IMPDEPLND__
   output_directory = LND_OUTPUT
 ::
@@ -91,3 +82,4 @@ hydAttributes::
   input_directory = HYD_INPUT
   output_directory = HYD_OUTPUT
 ::
+

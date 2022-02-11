@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=LISHydro
+#SBATCH --job-name=NASA-Land-Coupler
 #SBATCH --ntasks=__TASKS__
 #SBATCH --time=__TIME__
 #SBATCH --partition=compute
 #SBATCH --account=s1657
 #SBATCH --constraint=sky
 #SBATCH --qos=serial
-#SBATCH --output=run.log
+#SBATCH --output=job.log
 
-export LISHYDRO_DIR=${SLURM_SUBMIT_DIR}/../..
-export LISHYDRO_JOBID=${SLURM_JOB_ID}
-source ${LISHYDRO_DIR}/env/discover.intel.19.1.3
+export NLC_DIR=${SLURM_SUBMIT_DIR}/../..
+export NLC_JOBID=${SLURM_JOB_ID}
+source ${NLC_DIR}/env/discover.intel.19.1.3
 
 # set umask
 umask 022
@@ -21,13 +21,13 @@ ulimit -d unlimited
 ulimit -s unlimited
 ulimit -c unlimited
 
-echo "Job ID: ${LISHYDRO_JOBID}"
+echo "Job ID: ${NLC_JOBID}"
 
 s_tm=`date +%s`
 s_hr=`date +%H`; s_mn=`date +%M`; s_sc=`date +%S`
 echo "Model Start    ${s_hr}:${s_mn}:${s_sc}"
 
-mpirun -np __TASKS__ ./LISHydroApp >& lishydro.log
+mpirun -np __TASKS__ ./NLC.exe >& lishydro.log
 exec_s=$?
 
 e_tm=`date +%s`

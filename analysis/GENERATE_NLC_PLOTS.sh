@@ -22,8 +22,8 @@ function check_command {
 }
 
 function list_directories {
-  local LST_DIRTRY=(`find ${LISHYDRO_DIR}/run -maxdepth 1 -mindepth 1 -type d`)
-  echo "Available directories in ${LISHYDRO_DIR}/run:"
+  local LST_DIRTRY=(`find ${NLC_DIR}/run -maxdepth 1 -mindepth 1 -type d`)
+  echo "Available directories in ${NLC_DIR}/run:"
   for DIRECTORY in ${LST_DIRTRY[@]}; do
     echo "     $(basename ${DIRECTORY})"
   done
@@ -66,8 +66,8 @@ while getopts ${INF_OPT} opt; do
 done
 shift $((OPTIND -1))
 
-if [ -z ${LISHYDRO_DIR+x} ]; then
-   echo "ERROR: LISHYDRO_DIR is unset"  1>&2
+if [ -z ${NLC_DIR+x} ]; then
+   echo "ERROR: NLC_DIR is unset"  1>&2
    exit 1
 fi
 
@@ -79,29 +79,29 @@ else
   OPT_RUNDIR=$1
 fi
 
-SCP_LISHST="${LISHYDRO_DIR}/analysis/FERRET_LIS_HIST.jnl"
+SCP_LISHST="${NLC_DIR}/analysis/FERRET_LIS_HIST.jnl"
 if [ ! -f ${SCP_LISHST} ]; then
    echo "ERROR: LIS history script missing [${SCP_LISHST}]"  1>&2
    exit 1
 fi
-SCP_HYDCRT="${LISHYDRO_DIR}/analysis/FERRET_HYDRO_CHRTOUT.jnl"
+SCP_HYDCRT="${NLC_DIR}/analysis/FERRET_HYDRO_CHRTOUT.jnl"
 if [ ! -f ${SCP_HYDCRT} ]; then
    echo "ERROR: Hydro channel routing script missing [${SCP_HYDCRT}]"  1>&2
    exit 1
 fi
 
-DIR_RUNDIR="${LISHYDRO_DIR}/run/${OPT_RUNDIR}"
+DIR_RUNDIR="${NLC_DIR}/run/${OPT_RUNDIR}"
 if [ ! -d ${DIR_RUNDIR} ]; then
    echo "ERROR: Run directory missing [${DIR_RUNDIR}]"  1>&2
    list_directories
    exit 1
 fi
-DIR_LISOUT="${LISHYDRO_DIR}/run/${OPT_RUNDIR}/LIS_OUTPUT/SURFACEMODEL"
+DIR_LISOUT="${NLC_DIR}/run/${OPT_RUNDIR}/LIS_OUTPUT/SURFACEMODEL"
 if [ ! -d ${DIR_LISOUT} ]; then
    echo "ERROR: LIS output directory missing [${DIR_LISOUT}]"  1>&2
    exit 1
 fi
-DIR_HYDOUT="${LISHYDRO_DIR}/run/${OPT_RUNDIR}"
+DIR_HYDOUT="${NLC_DIR}/run/${OPT_RUNDIR}"
 if [ ! -d ${DIR_HYDOUT} ]; then
    echo "ERROR: Hydro output directory missing [${DIR_HYDOUT}]"  1>&2
    exit 1

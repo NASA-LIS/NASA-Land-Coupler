@@ -1,28 +1,28 @@
 # Analysis Toolkit
 Analysis tools can be used to generate visuals of application output and diff files.
 
-## Compare LIS Hydro files using the NetCDF Operator Toolkit
-LIS Hydro output is compared between baseline and test directories for LIS history files and WRF-Hydro channel routing files. The script calls ncdiff to generate the difference between baseline and test directories. The script then calls ncwa to generate the maximum absolute value for specified variables. If the maximum absolute value is not zero then the script will report an error. The difference files are stored for further analysis. By default this script will compare the final LIS history files and final WRF-Hydro channel routing files.
+## Compare NASA Land Coupler files using the NetCDF Operator Toolkit
+NASA Land Coupler output is compared between baseline and test directories for LIS history files and WRF-Hydro channel routing files. The script calls ncdiff to generate the difference between baseline and test directories. The script then calls ncwa to generate the maximum absolute value for specified variables. If the maximum absolute value is not zero then the script will report an error. The difference files are stored for further analysis. By default this script will compare the final LIS history files and final WRF-Hydro channel routing files.
 
 Script:
 ```
-COMPARE_LISHYDRO_NETCDF.sh
+COMPARE_NLC_NETCDF.sh
 ```
 Usage:
 ```
-$ ./COMPARE_LISHYDRO_NETCDF.sh [-h] [-a] [-d DATE] BASE_DIRECTORY TEST_DIRECTORY
+$ ./COMPARE_NLC_NETCDF.sh [-h] [-a] [-d DATE] BASE_DIRECTORY TEST_DIRECTORY
 ```
 
-## Generate LIS Hydro Plots using NOAA Ferret Utility
-LIS Hydro plots are generated for LIS history files and WRF-Hydro channel routing files. The script calls Ferret using scripts designed for LIS history files and WRF-Hydro channel routing files. By default this script will plot the final LIS history file and final WRF-Hydro channel routing file.
+## Generate NASA Land Coupler Plots using NOAA Ferret Utility
+NASA Land Coupler plots are generated for LIS history files and WRF-Hydro channel routing files. The script calls Ferret using scripts designed for LIS history files and WRF-Hydro channel routing files. By default this script will plot the final LIS history file and final WRF-Hydro channel routing file.
 
 Script:
 ```
-GENERATE_LISHYDRO_PLOTS.sh
+GENERATE_NLC_PLOTS.sh
 ```
 Usage:
 ```
-$ ./GENERATE_LISHYDRO_PLOTS.sh [-h] [-a] [-p PREFIX] [-d DIRECTORY] RUN_DIRECTORY
+$ ./GENERATE_NLC_PLOTS.sh [-h] [-a] [-p PREFIX] [-d DIRECTORY] RUN_DIRECTORY
 ```
 
 ### Plot LIS Output Files

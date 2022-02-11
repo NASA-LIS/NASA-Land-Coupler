@@ -1,16 +1,16 @@
-###############################################
-####  LISHydro runtime configuration      #####
-###############################################
+####################################################
+####  NASA Land Coupler runtime configuration  #####
+####################################################
 
 # optionally turn off a component (options are "yes" and "no")
 lnd: yes
 hyd: yes
-med: yes
+med: no
 
 # PET lists - if not set, use all PETs
 pets_lnd: __PETLISTLND__
 pets_hyd: __PETLISTHYD__
-pets_med: __PETLISTMED__
+#pets_med:
 
 # global clock
 time_step:  __TIMESTEP__
@@ -21,13 +21,9 @@ stop_time:  __STOPTIME__
 runSeq::
     @__TIMESTEP__
         LND
-        LND -> MED
-        MED prepHYD
-        MED -> HYD
+        LND -> HYD :remapMethod=__REMAP__
         HYD
-        HYD -> MED
-        MED prepLND
-        MED -> LND
+        HYD -> LND :remapMethod=__REMAP__
     @
 ::
 
@@ -35,23 +31,6 @@ runSeq::
 driverAttributes::
   Verbosity = high
   Profiling = 0
-::
-
-connectorAttributes::
-  Verbosity = 0
-  Profiling = 0
-::
-
-medAttributes::
-  Verbosity = 1
-  Profiling = 0
-  DataInitialization = __DATAINITMED__
-  RemapLND = FLD_REMAP_BILINR
-  RemapHYD = FLD_REMAP_BILINR
-  MaskFrLND = FLD_MASK_NNE
-  MaskToLND = FLD_MASK_NNE
-  MaskFrHYD = FLD_MASK_NNE
-  MaskToHYD = FLD_MASK_NNE
 ::
 
 lndAttributes::

@@ -34,7 +34,7 @@ usage () {
 settings () {
   printf "Settings:\n"
   printf "\n"
-  printf "  LISHYDRO_DIR=${LISHYDRO_DIR}\n"
+  printf "  NLC_DIR=${NLC_DIR}\n"
   printf "  USECASE=${USECASE}\n"
   printf "  DIR_APP=${DIR_APP}\n"
   printf "  DIR_USECASES=${DIR_USECASES}\n"
@@ -67,11 +67,11 @@ list_usecases () {
 }
 
 # default settings
-LISHYDRO_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
-DIR_APP=${LISHYDRO_DIR}/src/driver
-DIR_USECASES="${LISHYDRO_DIR}/usecases"
-DIR_RUNCFG="${LISHYDRO_DIR}/templates/runconfig"
-DIR_RUNSCP="${LISHYDRO_DIR}/templates/runscripts"
+NLC_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
+DIR_APP=${NLC_DIR}/src/driver
+DIR_USECASES="${NLC_DIR}/usecases"
+DIR_RUNCFG="${NLC_DIR}/templates/runconfig"
+DIR_RUNSCP="${NLC_DIR}/templates/runscripts"
 USECASE=""
 SYSTEM=""
 MYCOMPILER=""
@@ -188,11 +188,11 @@ if [ "${VERBOSE}" = true ] ; then
 fi
 
 # load environment for this system/compiler combination
-ENVFILE="${LISHYDRO_DIR}/env/${SYSTEM}.${MYCOMPILER}"
+ENVFILE="${NLC_DIR}/env/${SYSTEM}.${MYCOMPILER}"
 if [ ! -f "${ENVFILE}" ]; then
   printf "ERROR: environment file does not exist for ${SYSTEM}.${MYCOMPILER}\n"
   printf "Please select one of the following configurations\n"
-  for f in "${LISHYDRO_DIR}/env"/*
+  for f in "${NLC_DIR}/env"/*
   do
     printf "  $(basename $f)\n"
   done
@@ -225,33 +225,33 @@ else
   fi
 fi
 
-# Check RUNCONFIG variable then set LISHYDRO_RUNCONFIG template file
+# Check RUNCONFIG variable then set NLC_RUNCONFIG template file
 if [ -z $RUNCONFIG ]; then
   echo "ERROR: RUNCONFIG variable is undefined. Check [$USECASE_SETTINGS]"
   exit 1
 fi
-LISHYDRO_RUNCONFIG="$DIR_RUNCFG/lishydro.runconfig.$RUNCONFIG"
-if [ ! -f $LISHYDRO_RUNCONFIG ]; then
-  echo "ERROR: LISHYDRO_RUNCONFIG file is missing [$LISHYDRO_RUNCONFIG]"
+NLC_RUNCONFIG="$DIR_RUNCFG/nlc.runconfig.$RUNCONFIG"
+if [ ! -f $NLC_RUNCONFIG ]; then
+  echo "ERROR: NLC_RUNCONFIG file is missing [$NLC_RUNCONFIG]"
   exit 1
 fi
 
-# Set LISHYDRO_RUNSCRIPT template file
-LISHYDRO_RUNSCRIPT="$DIR_RUNSCP/run.${SYSTEM}.${MYCOMPILER}"
-if [ ! -f $LISHYDRO_RUNSCRIPT ]; then
-  echo "ERROR: LISHYDRO_RUNSCRIPT file is missing [$LISHYDRO_RUNSCRIPT]"
+# Set NLC_RUNSCRIPT template file
+NLC_RUNSCRIPT="$DIR_RUNSCP/run.${SYSTEM}.${MYCOMPILER}"
+if [ ! -f $NLC_RUNSCRIPT ]; then
+  echo "ERROR: NLC_RUNSCRIPT file is missing [$NLC_RUNSCRIPT]"
   exit 1
 fi
 
-# Check LISHYDRO_EXE
-LISHYDRO_EXE=${DIR_APP}/LISHydroApp
-if [ ! -f $LISHYDRO_EXE ]; then
-  echo "ERROR: LISHydroApp executable does not exist."
+# Check NLC_EXE
+NLC_EXE=${DIR_APP}/NLC.exe
+if [ ! -f $NLC_EXE ]; then
+  echo "ERROR: NLC executable does not exist."
   exit 1
 fi
 
 # Set RUNDIR and create RUNDIR
-RUNDIR=${LISHYDRO_DIR}/run/$USECASE
+RUNDIR=${NLC_DIR}/run/$USECASE
 if [ -d $RUNDIR ]; then
     echo "ERROR: Run directory already exists [$RUNDIR]"
     echo "Please delete or move and try again"
@@ -316,11 +316,11 @@ if [[ $RUNCONFIG == *"lnd"* ]]; then
 fi
 
 # Copy executable to RUNDIR
-cp $LISHYDRO_EXE $RUNDIR/.
+cp $NLC_EXE $RUNDIR/.
 
 # Copy runconfig and process use case settings
-cp $LISHYDRO_RUNCONFIG $RUNDIR/lishydro.runconfig
-settings=`grep -ow -e "__.*__" $RUNDIR/lishydro.runconfig`
+cp $NLC_RUNCONFIG $RUNDIR/nlc.runconfig
+settings=`grep -ow -e "__.*__" $RUNDIR/nlc.runconfig`
 ERROR=0
 for setting in ${settings}; do
   envvar=${setting//__/""}
@@ -331,16 +331,16 @@ for setting in ${settings}; do
   else
     value=${!envvar}
     value=`eval echo ${value}`
-    sed -i "s/$setting/$value/g" $RUNDIR/lishydro.runconfig
+    sed -i "s/$setting/$value/g" $RUNDIR/nlc.runconfig
   fi
 done
 if [ $ERROR -ne 0 ]; then
-  echo "ERROR: Processing failed [$LISHYDRO_RUNCONFIG]"
+  echo "ERROR: Processing failed [$NLC_RUNCONFIG]"
   exit $ERROR
 fi
 
 # Copy batch script and process use case settings
-cp $LISHYDRO_RUNSCRIPT $RUNDIR/run.sh
+cp $NLC_RUNSCRIPT $RUNDIR/run.sh
 settings=`grep -ow -e "__.*__" $RUNDIR/run.sh`
 ERROR=0
 for setting in ${settings}; do
@@ -356,7 +356,7 @@ for setting in ${settings}; do
   fi
 done
 if [ $ERROR != 0 ]; then
-  echo "ERROR: Processing failed [$LISHYDRO_RUNSCRIPT]"
+  echo "ERROR: Processing failed [$NLC_RUNSCRIPT]"
   exit $ERROR
 fi
 

@@ -1,15 +1,15 @@
 #!/bin/bash
-#PBS -N LISHydro
+#PBS -N NASA-Land-Coupler
 #PBS -A P48500028
 #PBS -l walltime=__TIME__
 #PBS -q regular
 #PBS -j oe
-#PBS -o run.log
+#PBS -o job.log
 #PBS -l select=__NODES__:ncpus=36:mpiprocs=36
 
-export LISHYDRO_DIR=${PBS_O_WORKDIR}/../..
-export LISHYDRO_JOBID=${PBS_JOBID}
-source ${LISHYDRO_DIR}/env/cheyenne.intel.19.1.1
+export NLC_DIR=${PBS_O_WORKDIR}/../..
+export NLC_JOBID=${PBS_JOBID}
+source ${NLC_DIR}/env/cheyenne.intel.19.1.1
 
 # set umask
 umask 022
@@ -21,13 +21,13 @@ ulimit -s unlimited
 ulimit -c unlimited
 ulimit -m unlimited
 
-echo "Job ID: ${LISHYDRO_JOBID}"
+echo "Job ID: ${NLC_JOBID}"
 
 s_tm=`date +%s`
 s_hr=`date +%H`; s_mn=`date +%M`; s_sc=`date +%S`
 echo "Model Start    ${s_hr}:${s_mn}:${s_sc}"
 
-mpirun -np __TASKS__ ./LISHydroApp >& lishydro.log
+mpirun -np __TASKS__ ./NLC.exe >& lishydro.log
 exec_s=$?
 
 e_tm=`date +%s`

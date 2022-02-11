@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# check for LISHYDRO source directory
-if [ -z "${LISHYDRO_DIR}" ] ; then
-  echo "ERROR: Please set LISHYDRO_DIR to root directory of cloned repository."
+# check for NASA Land Coupler source directory
+if [ -z "${NLC_DIR}" ] ; then
+  echo "ERROR: Please set NLC_DIR to root directory of cloned repository."
   exit 1
 fi
-if [ ! -d "${LISHYDRO_DIR}" ]; then
-  echo "ERROR: ${LISHYDRO_DIR} directory does not exist."
+if [ ! -d "${NLC_DIR}" ]; then
+  echo "ERROR: ${NLC_DIR} directory does not exist."
   exit 1
 fi
 
@@ -21,7 +21,7 @@ module load lib/mkl-10.1.2.024
 module list
 
 # LIS environment variables
-export LIS_SRC="${LISHYDRO_DIR}/src/LISF/lis"
+export LIS_SRC="${NLC_DIR}/src/LISF/lis"
 export LIS_ARCH="linux_ifc"
 export LIS_SPMD="parallel"
 export LIS_FC="mpif90"
@@ -42,12 +42,12 @@ export LIS_LIBESMF="/discover/nobackup/rsdunlap/ESMF-INSTALLS/7.1bs45/lib/libO/L
 # WRFHYDRO environment variables
 export NETCDF="${LIS_NETCDF}"
 
-# LISHYDRO environment variables
+# NASA Land Coupler environment variables
 export CMAKE_C_COMPILER="mpicc"
 export CMAKE_CXX_COMPILER="mpicxx"
 export CMAKE_Fortran_COMPILER="mpif90"
-export LISHYDRO_LIS_INST="${LISHYDRO_DIR}/LIS-INSTALL"
-export LISHYDRO_WRFHYDRO_INST="${LISHYDRO_DIR}/WRFHydro-INSTALL"
+export NLC_LIS_INST="${NLC_DIR}/LIS-INSTALL"
+export NLC_WRFHYDRO_INST="${NLC_DIR}/WRFHydro-INSTALL"
 export ESMFMKFILE="${LIS_LIBESMF}/esmf.mk"
 export WRF_HYDRO="1"
 

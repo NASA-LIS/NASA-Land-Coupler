@@ -38,9 +38,9 @@ function check_command {
 }
 
 function list_directories {
-  local LST_DIRTRY=(`find ${LISHYDRO_DIR}/run -maxdepth 1 -mindepth 1 -type d`)
-  LST_DIRTRY+=(`find ${LISHYDRO_DIR}/run -maxdepth 1 -mindepth 1 -type l`)
-  printf "Available directories in ${LISHYDRO_DIR}/run:\n"
+  local LST_DIRTRY=(`find ${NLC_DIR}/run -maxdepth 1 -mindepth 1 -type d`)
+  LST_DIRTRY+=(`find ${NLC_DIR}/run -maxdepth 1 -mindepth 1 -type l`)
+  printf "Available directories in ${NLC_DIR}/run:\n"
   for DIRECTORY in ${LST_DIRTRY[@]}; do
     printf "\t$(basename ${DIRECTORY})\n"
   done
@@ -198,8 +198,8 @@ while getopts ${INF_OPT} opt; do
 done
 shift $((OPTIND -1))
 
-if [ -z "${LISHYDRO_DIR+x}" ]; then
-  LISHYDRO_DIR="$(dirname `pwd`)"
+if [ -z "${NLC_DIR+x}" ]; then
+  NLC_DIR="$(dirname `pwd`)"
 fi
 
 if [[ $# -ne 2 ]]; then
@@ -211,35 +211,35 @@ else
   OPT_TSTDIR=$2
 fi
 
-DIR_BSEDIR="${LISHYDRO_DIR}/run/${OPT_BSEDIR}"
+DIR_BSEDIR="${NLC_DIR}/run/${OPT_BSEDIR}"
 if [ ! -e "${DIR_BSEDIR}" ]; then
    printf "ERROR: Baseline directory missing [${OPT_BSEDIR}]\n" 1>&2
    list_directories
    exit 1
 fi
-DIR_BSELIS="${LISHYDRO_DIR}/run/${OPT_BSEDIR}/LIS_OUTPUT/SURFACEMODEL"
+DIR_BSELIS="${NLC_DIR}/run/${OPT_BSEDIR}/LIS_OUTPUT/SURFACEMODEL"
 if [ ! -e "${DIR_BSELIS}" ]; then
    printf "ERROR: LIS output directory missing [${DIR_BSELIS}]\n" 1>&2
    exit 1
 fi
-DIR_BSEHYD="${LISHYDRO_DIR}/run/${OPT_BSEDIR}"
+DIR_BSEHYD="${NLC_DIR}/run/${OPT_BSEDIR}"
 if [ ! -e "${DIR_BSEHYD}" ]; then
    printf "ERROR: Hydro output directory missing [${DIR_BSEHYD}]\n" 1>&2
    exit 1
 fi
 
-DIR_TSTDIR="${LISHYDRO_DIR}/run/${OPT_TSTDIR}"
+DIR_TSTDIR="${NLC_DIR}/run/${OPT_TSTDIR}"
 if [ ! -e "${DIR_TSTDIR}" ]; then
    printf "ERROR: Test directory missing [${OPT_TSTDIR}]\n" 1>&2
    list_directories
    exit 1
 fi
-DIR_TSTLIS="${LISHYDRO_DIR}/run/${OPT_TSTDIR}/LIS_OUTPUT/SURFACEMODEL"
+DIR_TSTLIS="${NLC_DIR}/run/${OPT_TSTDIR}/LIS_OUTPUT/SURFACEMODEL"
 if [ ! -e "${DIR_TSTLIS}" ]; then
    printf "ERROR: LIS output directory missing [${DIR_TSTLIS}]\n" 1>&2
    exit 1
 fi
-DIR_TSTHYD="${LISHYDRO_DIR}/run/${OPT_TSTDIR}"
+DIR_TSTHYD="${NLC_DIR}/run/${OPT_TSTDIR}"
 if [ ! -e "${DIR_TSTHYD}" ]; then
    printf "ERROR: Hydro output directory missing [${DIR_TSTHYD}]\n" 1>&2
    exit 1

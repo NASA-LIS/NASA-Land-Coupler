@@ -1336,10 +1336,10 @@ module Mediator
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
         ! Initialize realized fields
-        call MedConn_DataReset(is%wrap%toLND(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        call MedConn_DataReset(is%wrap%toLND(i), resetValue=NLC_INITVAL, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call MedConn_DataReset(is%wrap%toHYD(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        call MedConn_DataReset(is%wrap%toHYD(i), resetValue=NLC_INITVAL, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
       enddo
@@ -1381,10 +1381,10 @@ module Mediator
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
         ! Initialize realized fields
-        call MedConn_DataReset(is%wrap%toLND(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        call MedConn_DataReset(is%wrap%toLND(i), resetValue=NLC_INITVAL, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call MedConn_DataReset(is%wrap%toHYD(i), resetValue=LISHYDRO_INITVAL, rc=rc)
+        call MedConn_DataReset(is%wrap%toHYD(i), resetValue=NLC_INITVAL, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
       enddo
@@ -1419,10 +1419,10 @@ module Mediator
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       ! Initialize realized fields
-      call MedConn_DataReset(is%wrap%toLND(1), resetValue=LISHYDRO_INITVAL, rc=rc)
+      call MedConn_DataReset(is%wrap%toLND(1), resetValue=NLC_INITVAL, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      call MedConn_DataReset(is%wrap%toHYD(1), resetValue=LISHYDRO_INITVAL, rc=rc)
+      call MedConn_DataReset(is%wrap%toHYD(1), resetValue=NLC_INITVAL, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif ! is%wrap%ensMap
@@ -1543,14 +1543,14 @@ module Mediator
             endif
 
             if (associated(ugLBound).and.associated(ugUBound)) then
-              call ESMF_FieldEmptyComplete(field, typekind=LISHYDRO_TYPEKIND, &
+              call ESMF_FieldEmptyComplete(field, typekind=NLC_TYPEKIND, &
                 ungriddedLBound=ugLBound, ungriddedUBound=ugUBound, &
                 gridToFieldMap=gridToFieldMap, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
               deallocate(ugLBound, ugUBound)
             else
-              call ESMF_FieldEmptyComplete(field, typekind=LISHYDRO_TYPEKIND, &
+              call ESMF_FieldEmptyComplete(field, typekind=NLC_TYPEKIND, &
                 gridToFieldMap=gridToFieldMap, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
@@ -1819,7 +1819,7 @@ module Mediator
             line=__LINE__, file=__FILE__)) return  ! bail out
           do i=1, ensCount
             newfield = ESMF_FieldCreate(name=trim(itemNameList(j)), &
-              grid=grid, typekind=LISHYDRO_TYPEKIND, rc=rc)
+              grid=grid, typekind=NLC_TYPEKIND, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=__FILE__)) return  ! bail out
             call ESMF_StateAdd(scEnsState(i), fieldList=(/newfield/), rc=rc)
@@ -3149,8 +3149,8 @@ module Mediator
     type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
     type(ESMF_Field)                        :: ensField
     type(ESMF_Field)                        :: field
-    real(LISHYDRO_KIND), pointer            :: ensFarrayPtr(:,:,:)
-    real(LISHYDRO_KIND), pointer            :: farrayPtr(:,:)
+    real(NLC_KIND), pointer            :: ensFarrayPtr(:,:,:)
+    real(NLC_KIND), pointer            :: farrayPtr(:,:)
 
     rc = ESMF_SUCCESS
 
@@ -3204,8 +3204,8 @@ module Mediator
     type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
     type(ESMF_Field)                        :: ensField
     type(ESMF_Field)                        :: field
-    real(LISHYDRO_KIND), pointer            :: ensFarrayPtr(:,:,:)
-    real(LISHYDRO_KIND), pointer            :: farrayPtr(:,:)
+    real(NLC_KIND), pointer            :: ensFarrayPtr(:,:,:)
+    real(NLC_KIND), pointer            :: farrayPtr(:,:)
 
     rc = ESMF_SUCCESS
 

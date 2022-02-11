@@ -1,41 +1,41 @@
-#ifndef LISHYDRO_OPTLEVEL
-#define LISHYDRO_OPTLEVEL 1
+#ifndef NLC_OPTLEVEL
+#define NLC_OPTLEVEL 1
 #endif
 
-#ifndef LISHYDRO_PRCLEVEL
-#define LISHYDRO_PRCLEVEL 2
+#ifndef NLC_PRCLEVEL
+#define NLC_PRCLEVEL 2
 #endif
 
-#ifndef LISHYDRO_LOGKIND
-#if LISHYDRO_OPTLEVEL >= 3
-#define LISHYDRO_LOGKIND      ESMF_LOGKIND_NONE
-#elif LISHYDRO_OPTLEVEL >= 2
-#define LISHYDRO_LOGKIND      ESMF_LOGKIND_MULTI_ON_ERROR
+#ifndef NLC_LOGKIND
+#if NLC_OPTLEVEL >= 3
+#define NLC_LOGKIND      ESMF_LOGKIND_NONE
+#elif NLC_OPTLEVEL >= 2
+#define NLC_LOGKIND      ESMF_LOGKIND_MULTI_ON_ERROR
 #else
-#define LISHYDRO_LOGKIND      ESMF_LOGKIND_MULTI
+#define NLC_LOGKIND      ESMF_LOGKIND_MULTI
 #endif
 #endif
 
-#ifndef LISHYDRO_TYPEKIND
-#if LISHYDRO_PRCLEVEL >= 2
-#define LISHYDRO_TYPEKIND     ESMF_TYPEKIND_R8
+#ifndef NLC_TYPEKIND
+#if NLC_PRCLEVEL >= 2
+#define NLC_TYPEKIND     ESMF_TYPEKIND_R8
 #else
-#define LISHYDRO_TYPEKIND     ESMF_TYPEKIND_R4
+#define NLC_TYPEKIND     ESMF_TYPEKIND_R4
 #endif
 #endif
 
-#ifndef LISHYDRO_KIND
-#if LISHYDRO_PRCLEVEL >= 2
-#define LISHYDRO_KIND         ESMF_KIND_R8
+#ifndef NLC_KIND
+#if NLC_PRCLEVEL >= 2
+#define NLC_KIND         ESMF_KIND_R8
 #else
-#define LISHYDRO_KIND         ESMF_KIND_R4
+#define NLC_KIND         ESMF_KIND_R4
 #endif
 #endif
 
-#ifndef LISHYDRO_CONFIG
-#define LISHYDRO_CONFIG       "lishydro.runconfig"
+#ifndef NLC_CONFIG
+#define NLC_CONFIG       "nlc.runconfig"
 #endif
 
-#ifndef LISHYDRO_INITVAL
-#define LISHYDRO_INITVAL      999999999.0D0
+#ifndef NLC_INITVAL
+#define NLC_INITVAL      999999999.0D0
 #endif

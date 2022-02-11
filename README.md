@@ -1,12 +1,12 @@
-# lishydro
+# NASA Land Coupler
 Coupled surface-hydrology application with data assimilation.
 
 ## Components
-**LIS-Hydro Driver and Mediator**:
-The LIS-Hydro driver and mediator have been designed in collaboration by NOAA,
-NASA, and NCAR. The custom driver couples LIS and WRF-Hydro within the NUOPC
-framework. Coupled system configuration is controlled via settings in the
-*lishydro.runconfig* file. The custom mediator couples an in memory ensemble to
+**NASA Land Coupler Driver and Mediator**:
+The NASA Land Coupler driver and mediator have been designed in collaboration
+by NOAA, NASA, and NCAR. The custom driver couples LIS and WRF-Hydro within the
+NUOPC framework. Coupled system configuration is controlled via settings in the
+*nlc.runconfig* file. The custom mediator couples an in memory ensemble to
 multiple instances of a component, which allows users to run a coupled ensemble
 entirely in memory. Each component is individually configured based on the needs
 of the component (see documentation for each component).
@@ -57,8 +57,8 @@ $ ./configure.sh
 ```
 
 **Build Application**
-Build LISHydroApp using the *build.sh* script. For more information run
-`./build.sh --help`. LISHydroApp will be installed into src/driver.
+Build NASA Land Coupler (NLC) using the *build.sh* script. For more information
+run `./build.sh --help`. NLC.exe will be installed into src/driver.
 ```
 $ ./build.sh
 ```

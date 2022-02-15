@@ -1,8 +1,8 @@
 [submodule "src/wrf_hydro_nwm"]
 	path = src/wrf_hydro_nwm
-	url = git@github.com:NCAR/wrf_hydro_nwm_public.git
-	branch = v5.2.x
+	url = https://github.com/NCAR/wrf_hydro_nwm_public.git
+	branch = master
 [submodule "src/LISF"]
 	path = src/LISF
-	url = git@github.com:NASA-LIS/LISF.git
+	url = https://github.com/NASA-LIS/LISF.git
 	branch = master

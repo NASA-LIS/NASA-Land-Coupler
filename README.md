@@ -47,6 +47,9 @@ $ git submodule init
 $ git submodule update
 ```
 
+## Prerequisites
+System requires ESMF v8.0.1 or later.
+
 ## Build Instructions
 
 **Configure Submodules**

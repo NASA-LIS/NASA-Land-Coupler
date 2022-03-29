@@ -178,15 +178,17 @@ module ESM
         label="instance_count_hyd:", default=1, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
-      if (instCnt.gt.1) then
-        multiInst = .true.  ! default multi instance .true.
-      else
-        multiInst = .false. ! default multi instance .false.
+      if (instCnt.gt.1) then ! default multi instance .true.
+        call ESMF_ConfigGetAttribute(config, multiInst, &
+          label="multi_instance_hyd:", default=.true., rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      else ! default multi instance .false.
+        call ESMF_ConfigGetAttribute(config, multiInst, &
+          label="multi_instance_hyd:", default=.false., rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
       endif
-      call ESMF_ConfigGetAttribute(config, multiInst, &
-        label="multi_instance_hyd:", default=multiInst, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
       if ((.NOT.multiInst) .AND. (instCnt.gt.1)) then
         call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
           msg="multi_instance_hyd must be true for instance count gt 1", &
@@ -736,8 +738,8 @@ module ESM
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       diagnostic = ESMF_UtilString2Int(value, &
-        specialStringList=(/"min","max","debug"/), &
-        specialValueList=(/0,65535,65536/), rc=rc)
+        specialStringList=(/"max ", "high", "low ", "off "/), &
+        specialValueList= (/ 65535,  65535,  65535,      0/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       call ESMF_AttributeGet(connectorList(i), name="Verbosity", value=value, &
@@ -745,8 +747,8 @@ module ESM
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       verbosity = ESMF_UtilString2Int(value, &
-        specialStringList=(/"min","max","debug"/), &
-        specialValueList=(/0,65535,65536/), rc=rc)
+        specialStringList=(/"max ", "high", "low ", "off "/), &
+        specialValueList= (/ 65535,  65281,   8193,      0/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       if (verbosity>0) then

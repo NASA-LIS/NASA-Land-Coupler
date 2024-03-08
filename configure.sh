@@ -135,36 +135,6 @@ if [ ! -f "make/configure.lis" ]; then
 fi
 printf "\n"
 
-printf "*************************************************\n"
-printf "***       WRFHYDRO BUILD CONFIGURATION        ***\n"
-printf "*************************************************\n"
-if [ ! -f "$NLC_DIR/src/wrf_hydro_nwm/trunk/NDHMS/configure" ]; then
-  printf "ERROR: WRFHYDRO configure file is missing\n"
-  printf "       \tgit submodule init\n"
-  printf "       \tgit submodule update\n"
-  exit 1
-else
-  cd $NLC_DIR/src/wrf_hydro_nwm/trunk/NDHMS
-fi
-if [ "${INTERACTIVE}" = true ]; then
-  ./configure; RC=$?
-elif [[ "${MYCOMPILER}" == *"cray"* ]]; then
-  echo "6" | ./configure; RC=$?
-elif [[ "${MYCOMPILER}" == *"intel"* ]]; then
-  echo "3" | ./configure; RC=$?; echo $RC
-elif [[ "${MYCOMPILER}" == *"gnu"* ]]; then
-  echo "2" | ./configure; RC=$?
-elif [[ "${MYCOMPILER}" == *"pgi"* ]]; then
-  echo "1" | ./configure; RC=$?
-else
-  printf "ERROR: compiler unknown ${MYCOMPILER}\n" 
-  exit 1
-fi
-if [ ! -f "macros" ]; then
-  RC=1
-fi
-printf "\n"
-
 if [ $RC -ne 0 ]; then
   printf "ERROR: configuration failed.\n"
   exit 1

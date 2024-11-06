@@ -3,23 +3,20 @@
 #SBATCH --ntasks=__TASKS__
 #SBATCH --time=__TIME__
 #SBATCH --partition=compute
-#SBATCH --account=s1657
-#SBATCH --constraint=hasw
+#SBATCH --account=s1189
+#SBATCH --constraint=mil
 #SBATCH --qos=serial
 #SBATCH --output=job.log
 
 export NLC_DIR=${SLURM_SUBMIT_DIR}/../..
 export NLC_JOBID=${SLURM_JOB_ID}
-source ${NLC_DIR}/env/discover.intel.14.0.3
+
+source /etc/profile.d/modules.sh
+module use "${NLC_DIR}/env/discover-15.4"
+module load "intel-2023.2.1"
 
 # set umask
 umask 022
-# set limits
-ulimit -t unlimited
-ulimit -f unlimited
-ulimit -d unlimited
-ulimit -s unlimited
-ulimit -c unlimited
 
 echo "Job ID: ${NLC_JOBID}"
 

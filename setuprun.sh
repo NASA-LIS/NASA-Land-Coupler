@@ -17,11 +17,8 @@ usage () {
   printf "  preconfigured use case\n"
   printf "\n"
   printf "OPTIONS\n"
-  printf "  --system=SYSTEM\n"
-  printf "      name of machine (e.g. 'discover', 'cheyenne')\n"
-  printf "  --compiler=COMPILER\n"
-  printf "      compiler to use; valid options are 'intel.X.Y.Z', \n"
-  printf "      'gnu.X.Y.Z'; default is system dependent.\n"
+  printf "  --env-auto-off\n"
+  printf "      do not load preconfigured environment based on system\n"
   printf "  --dir-app=PATH\n"
   printf "      application directory\n"
   printf "  --data-root=PATH\n"
@@ -50,19 +47,12 @@ settings () {
   printf "  DIR_RUNCFG=${DIR_RUNCFG}\n"
   printf "  DIR_RUNSCP=${DIR_RUNSCP}\n"
   printf "  SYSTEM=${SYSTEM}\n"
-  printf "  MYCOMPILER=${MYCOMPILER}\n"
+  printf "  ENV_AUTO=${ENV_AUTO}\n"
   printf "  DATA_ROOT=${DATA_ROOT}\n"
   printf "  BATCH_SYS=${BATCH_SYS}\n"
   printf "  CPPERNODE=${CPPERNODE}\n"
   printf "  VERBOSE=${VERBOSE}\n"
   printf "\n"
-}
-
-# find system name
-find_system () {
-    local sysname=`hostname`
-    sysname="${sysname//[[:digit:]]/}"
-    echo "$sysname"
 }
 
 list_usecases () {
@@ -83,7 +73,8 @@ DIR_RUNCFG="${NLC_DIR}/templates/runconfig"
 DIR_RUNSCP="${NLC_DIR}/templates/runscripts"
 USECASE=""
 SYSTEM=""
-MYCOMPILER=""
+ENV_DIR="${NLC_DIR}/env"
+ENV_AUTO=true
 DATA_ROOT=""
 BATCH_SYS=""
 CPPERNODE=""
@@ -103,12 +94,11 @@ while [ ! -z "$1" ]; do
   case $1 in
     --help|-h) usage; exit 0 ;;
     --list-usecases|-l) list_usecases; exit 0 ;;
-    --system=?*) SYSTEM=${1#*=} ;;
-    --system|--system=) printf "ERROR: $1 requires an argument.\n"
-                        usage; exit 1 ;;
-    --compiler=?*) MYCOMPILER=${1#*=} ;;
-    --compiler|--compiler=) printf "ERROR: $1 requires an argument.\n"
-                            usage; exit 1 ;;
+    --env-auto-off) ENV_AUTO=true ;;
+    --env-auto-off=?*) printf "ERROR: $1 argument ignored.\n"
+                   usage; exit 1 ;;
+    --env-auto-off=) printf "ERROR: $1 argument ignored.\n"
+                   usage; exit 1 ;;
     --dir-app=?*) DIR_APP=${1#*=} ;;
     --dir-app|--dir-app=) printf "ERROR: $1 requires an argument.\n"
                           usage; exit 1 ;;
@@ -134,81 +124,23 @@ done
 
 set -eu
 
+source scripts/setupenv.sh
+
 # automatically determine system
 if [ -z "${SYSTEM}" ] ; then
   SYSTEM=$(find_system)
 fi
 
-# automatically determine compiler
-if [ -z "${MYCOMPILER}" ] ; then
-  if [ "${SYSTEM}" = "discover" ]; then
-    MYCOMPILER="intel.19.1.3"
-  elif [ "${SYSTEM}" = "cheyenne" ]; then
-    MYCOMPILER="intel.19.1.1"
-  else
-    printf "ERROR: no default compiler for ${SYSTEM}\n"
-    printf "\n"
-    exit 1
-  fi
-fi
-
-# automatically determine data root
-if [ -z "${DATA_ROOT}" ] ; then
-  if [ "${SYSTEM}" = "discover" ]; then
-    DATA_ROOT="/discover/nobackup/projects/nu-wrf/lishydro/data"
-  elif [ "${SYSTEM}" = "cheyenne" ]; then
-    DATA_ROOT="/glade/p/ral/hap/drosen/projects/LISHydro/data"
-  else
-    printf "ERROR: no default compiler for ${SYSTEM}\n"
-    printf "\n"
-    exit 1
-  fi
-fi
-
-# automatically determine batch system
-if [ -z "${BATCH_SYS}" ] ; then
-  if [ "${SYSTEM}" = "discover" ]; then
-    BATCH_SYS="sbatch"
-  elif [ "${SYSTEM}" = "cheyenne" ]; then
-    BATCH_SYS="qsub"
-  else
-    printf "ERROR: no default compiler for ${SYSTEM}\n"
-    printf "\n"
-    exit 1
-  fi
-fi
-
-# automatically determine cores per node
-if [ -z "${CPPERNODE}" ] ; then
-  if [ "${SYSTEM}" = "discover" ]; then
-    CPPERNODE=28
-  elif [ "${SYSTEM}" = "cheyenne" ]; then
-    CPPERNODE=36
-  else
-    printf "ERROR: no default compiler for ${SYSTEM}\n"
-    printf "\n"
-    exit 1
-  fi
+# auto modulefile
+export NLC_DIR="${NLC_DIR}"
+if [ "${ENV_AUTO}" = true ] ; then
+  auto_environment ${SYSTEM} ${ENV_DIR}
 fi
 
 # print settings
 if [ "${VERBOSE}" = true ] ; then
   settings
 fi
-
-# load environment for this system/compiler combination
-ENVFILE="${NLC_DIR}/env/${SYSTEM}.${MYCOMPILER}"
-if [ ! -f "${ENVFILE}" ]; then
-  printf "ERROR: environment file does not exist for ${SYSTEM}.${MYCOMPILER}\n"
-  printf "Please select one of the following configurations\n"
-  for f in "${NLC_DIR}/env"/*
-  do
-    printf "  $(basename $f)\n"
-  done
-  printf "\n"
-  exit 1
-fi
-source ${ENVFILE}
 
 # Include usecase settings
 USECASE_SETTINGS="$DIR_USECASES/$USECASE"
@@ -246,7 +178,7 @@ if [ ! -f $NLC_RUNCONFIG ]; then
 fi
 
 # Set NLC_RUNSCRIPT template file
-NLC_RUNSCRIPT="$DIR_RUNSCP/run.${SYSTEM}.${MYCOMPILER}"
+NLC_RUNSCRIPT="$DIR_RUNSCP/${SYSTEM}/run.${COMPILER_VERS}"
 if [ ! -f $NLC_RUNSCRIPT ]; then
   echo "ERROR: NLC_RUNSCRIPT file is missing [$NLC_RUNSCRIPT]"
   exit 1

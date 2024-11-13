@@ -29,6 +29,7 @@ module Mediator
     mediator_label_Finalize        => label_Finalize, &
     NUOPC_MediatorGet
   use Fields
+  use Flags
 
   implicit none
 

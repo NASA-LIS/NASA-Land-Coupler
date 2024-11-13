@@ -86,13 +86,14 @@ DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 
 
 # -----------------------------------------------------------------------------
-NLC.exe: app.o driver.o mediator.o fields.o
+NLC.exe: app.o driver.o mediator.o fields.o flags.o
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(DEP_LINK_OBJS) $(DEP_SHRD_PATH) $(DEP_SHRD_LIBS)
 
 # module dependencies:
 app.o: driver.o
-driver.o: mediator.o
-mediator.o: fields.o
+driver.o: flags.o fields.o mediator.o
+mediator.o: flags.o fields.o
+fields.o: flags.o
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

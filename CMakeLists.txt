@@ -50,6 +50,10 @@ add_dependencies(NLC.exe lis_nuopc)
 target_link_libraries(NLC.exe PUBLIC ${NLC_LIS_INST}/liblis_nuopc.a)
 target_include_directories(NLC.exe PUBLIC ${NLC_LIS_INST})
 
+# link LIS dependencies
+include(lis_dependencies)
+target_link_lis_dependencies(NLC.exe)
+
 # link WFHYDRO
 message("Build WRFHYDRO:")
 message("   add_subdirectory: ${CMAKE_CURRENT_SOURCE_DIR}/src/wrf_hydro_nwm/trunk/NDHMS")
@@ -59,41 +63,12 @@ add_dependencies(NLC.exe wrfhydro_nuopc)
 target_link_libraries(NLC.exe PUBLIC wrfhydro_nuopc)
 target_include_directories(NLC.exe PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/wrf_hydro_nwm/trunk/NDHMS/mods>)
 
+# link WRFHYDRO dependencies
+include(wrfhydro_dependencies)
+target_link_wrfhydro_dependencies(NLC.exe)
+
 # add flags
 target_compile_definitions(NLC.exe PRIVATE "${nlc_defs_private}")
-
-# find LIS dependencies
-find_package(LISDEPS MODULE REQUIRED)
-if (JASPER_FOUND) # JASPER
-  target_link_libraries(NLC.exe PUBLIC JASPER::JASPER)
-endif ()
-if (OPENJPEG_FOUND) # OPENJPEG
-  target_link_libraries(NLC.exe PUBLIC OPENJPEG::OPENJPEG)
-endif ()
-if (GRIBAPI_FOUND) # GRIBAPI
-  target_link_libraries(NLC.exe PUBLIC GRIBAPI::GRIBAPI)
-  target_link_libraries(NLC.exe PUBLIC GRIBAPI::GRIBAPI_F90)
-elseif (ECCODES_FOUND) # ECCODES
-  target_link_libraries(NLC.exe PUBLIC ECCODES::ECCODES)
-  target_link_libraries(NLC.exe PUBLIC ECCODES::ECCODES_F90)
-endif ()
-if (HDF4_FOUND) # HDF4
-  target_link_libraries(NLC.exe PUBLIC HDF4::MFHDF)
-  target_link_libraries(NLC.exe PUBLIC HDF4::DF)
-endif ()
-if (HDF5_FOUND) # HDF5
-  target_link_libraries(NLC.exe PUBLIC HDF5::HDF5)
-  target_link_libraries(NLC.exe PUBLIC HDF5::HDF5_FORTRAN)
-  target_link_libraries(NLC.exe PUBLIC HDF5::HDF5_HL)
-endif ()
-if (HDFEOS_FOUND) # HDFEOS
-  target_link_libraries(NLC.exe PUBLIC HDFEOS::HDFEOS)
-  target_link_libraries(NLC.exe PUBLIC HDFEOS::GCTP)
-endif ()
-if (NETCDF_FOUND) # NETCDF
-  target_link_libraries(NLC.exe PUBLIC NETCDF::NETCDF)
-  target_link_libraries(NLC.exe PUBLIC NETCDF::NETCDFF)
-endif ()
 
 # NLC install
 install(TARGETS NLC.exe DESTINATION .)

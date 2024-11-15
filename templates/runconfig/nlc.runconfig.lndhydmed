@@ -45,7 +45,8 @@ connectorAttributes::
 medAttributes::
   Verbosity = 1
   Profiling = 0
-  DataInitialization = __DATAINITMED__
+  DataInitLnd = __DATAINITLND__
+  DataInitHyd = __DATAINITHYD__
   RemapLND = FLD_REMAP_BILINR
   RemapHYD = FLD_REMAP_BILINR
   MaskFrLND = FLD_MASK_NNE

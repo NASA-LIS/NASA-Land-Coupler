@@ -52,8 +52,10 @@ medAttributes::
   Verbosity = 1
   Diagnostic = 0
   Profiling = 0
-  DataInitialization = __DATAINITMED__
-  EnsembleMapping = __ENSMAP__
+  DataInitLnd = __DATAINITLND__
+  DataInitHyd = __DATAINITHYD__
+  EnsembleLnd = __ENSLND__
+  EnsembleHyd = __ENSHYD__
   RemapLND = FLD_REMAP_BILINR
   RemapHYD = FLD_REMAP_BILINR
   MaskFrLND = FLD_MASK_NNE

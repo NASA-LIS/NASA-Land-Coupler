@@ -1,5 +1,0 @@
-*.o
-*.mod
-*.exe
-lib/*.a
-lib/cmake

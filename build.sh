@@ -54,7 +54,7 @@ settings () {
 # default settings
 NLC_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 BUILD_DIR=${NLC_DIR}/build
-INSTALL_DIR=${NLC_DIR}/src/driver
+INSTALL_DIR=${NLC_DIR}/install
 SYSTEM=""
 ENV_DIR="${NLC_DIR}/env"
 ENV_AUTO=true

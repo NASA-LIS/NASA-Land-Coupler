@@ -50,11 +50,7 @@ endif()
 
 # link LIS
 if (ENABLE_LIS)
-  if (DEFINED ENV{NLC_LIS_INST} AND NOT DEFINED NLC_LIS_INST)
-    set(NLC_LIS_INST $ENV{NLC_LIS_INST} CACHE FILEPATH "Path to NLC_LIS_INST")
-  elseif (NOT DEFINED NLC_LIS_INST)
-    message(FATAL_ERROR "Environment missing NLC_LIS_INST.")
-  endif ()
+  set(NLC_LIS_INST ${CMAKE_INSTALL_PREFIX}/LIS)
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/LISF/lis/make/configure.lis")
     message(FATAL_ERROR "LIS configuration missing.")
   endif()
@@ -96,3 +92,4 @@ target_compile_definitions(NLC.exe PRIVATE "${nlc_defs_private}")
 
 # NLC install
 install(TARGETS NLC.exe DESTINATION .)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/fd_nlc.yaml DESTINATION .)

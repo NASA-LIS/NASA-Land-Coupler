@@ -67,7 +67,7 @@ list_usecases () {
 
 # default settings
 NLC_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
-DIR_APP=${NLC_DIR}/src/driver
+DIR_APP=${NLC_DIR}/install
 DIR_USECASES="${NLC_DIR}/usecases"
 DIR_RUNCFG="${NLC_DIR}/templates/runconfig"
 DIR_RUNSCP="${NLC_DIR}/templates/runscripts"

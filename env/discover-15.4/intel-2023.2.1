@@ -157,13 +157,12 @@ setenv   NETCDF              $def_wrfhydro_netcdf
 setenv   WRF_HYDRO           1
 setenv   WRF_HYDRO_NUOPC     1
 setenv   WRF_HYDRO_NUOPC_LSM 0
+setenv   WRF_HYDRO_NUDGING   0
 setenv   HYDRO_D             0
 
 setenv CMAKE_C_COMPILER       mpicc
 setenv CMAKE_CXX_COMPILER     mpicxx
 setenv CMAKE_Fortran_COMPILER mpiifort
-setenv NLC_LIS_INST           "$def_nlc_dir/LIS-INSTALL"
-setenv NLC_WRFHYDRO_INST      "$def_nlc_dir/WRFHydro-INSTALL"
 setenv ESMFMKFILE             "$def_lis_libesmf/esmf.mk"
 
 prepend-path   LD_LIBRARY_PATH   "$def_lis_openjpeg/lib"

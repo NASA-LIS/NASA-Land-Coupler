@@ -261,6 +261,16 @@ if [[ $RUNCONFIG == *"lnd"* ]]; then
     echo "ERROR: DATA_LND directory not found [$DATA_LND]"
     exit 1
   fi
+  # check lis.config
+  metfsrc=$(grep "Met forcing sources:" $RUNDIR/lis.config || echo "")
+  if [[ "${metfsrc}" == *"NLDAS2"* ]]; then
+    if [[ "${metfsrc}" != *"NLDAS2 grib"* ]] && \
+       [[ "${metfsrc}" != *"NLDAS2 netcdf"* ]]; then
+      printf "\e[31mERROR: lis.config error in [Met forcing sources]\n"
+      printf "  [NLDAS2] must be replaced with [NLDAS2 grib] or [NLDAS2 netcdf]"
+      printf "\e[0m\n\n"
+    fi
+  fi
 fi
 
 # Copy executable to RUNDIR

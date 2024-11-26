@@ -1,0 +1,65 @@
+####################################################
+####  NASA Land Coupler runtime configuration  #####
+####################################################
+
+# optionally turn off a component (options are "yes" and "no")
+lnd: yes
+gwr: yes
+med: no
+
+gwr_model: __GWRMODEL__
+
+# PET lists - if not set, use all PETs
+pets_lnd: __PETLISTLND__
+pets_gwr: __PETLISTGWR__
+#pets_med:
+
+# global clock
+time_step:  __TIMESTEP__
+start_time: __STARTTIME__
+stop_time:  __STOPTIME__
+
+# run sequence
+runSeq::
+    @__TIMESTEP__
+        LND
+        LND -> GWR :remapmethod=__REMAP__:srcMaskValues=0:dstMaskValues=0
+        GWR
+        GWR -> LND :remapmethod=__REMAP__:srcMaskValues=0:dstMaskValues=0:zeroRegion=select
+    @
+::
+
+# component attributes
+driverAttributes::
+  Verbosity = high
+  Profiling = 0
+  cpl_list = __CPLLIST__
+::
+
+lndAttributes::
+  Verbosity = 1
+  Diagnostic = 0
+  Profiling = 0
+  realize_all_export = false
+  config_file = lis.config
+  nest_to_nest = false
+  initialize_import = __LNDINITIMP__
+  initialize_export = __LNDINITEXP__
+  missing_import = __LNDDATAMISSING__
+  output_directory = "LND_CAP_OUTPUT"
+::
+
+gwrAttributes::
+  Verbosity = 1
+  Diagnostic = 0
+  prep_filename = __GWRPRP__
+  filename = __GWRCFG__
+  initialize_import = __GWRINITIMP__
+  initialize_export = __GWRINITEXP__
+  thickness_of_soil_layers = __GWRSLTHICK__
+  check_import = FLD_CHECK_NEXTT
+  coord_type = GRD_COORD_CLMVEGTF
+  coord_filename = __GWRCOORDFN__
+  output_directory = "./GWR_CAP_OUTPUT"
+::
+

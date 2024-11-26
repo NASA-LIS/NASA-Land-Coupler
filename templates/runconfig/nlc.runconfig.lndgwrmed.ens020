@@ -1,0 +1,147 @@
+####################################################
+####  NASA Land Coupler runtime configuration  #####
+####################################################
+
+# optionally turn off a component (options are "yes" and "no")
+lnd: yes
+gwr: yes
+med: yes
+
+# PET lists - if not set, use all PETs
+pets_lnd: __PETLISTLND__
+pets_gwr: __PETLISTGWR__
+pets_med: __PETLISTMED__
+
+multi_instance_gwr: true
+instance_count_gwr: 20
+
+# global clock
+time_step:  __TIMESTEP__
+start_time: __STARTTIME__
+stop_time:  __STOPTIME__
+
+# run sequence
+runSeq::
+    @__TIMESTEP__
+        LND
+        LND -> MED
+        MED prepGWR
+        MED -> GWR-01
+        MED -> GWR-02
+        MED -> GWR-03
+        MED -> GWR-04
+        MED -> GWR-05
+        MED -> GWR-06
+        MED -> GWR-07
+        MED -> GWR-08
+        MED -> GWR-09
+        MED -> GWR-10
+        MED -> GWR-11
+        MED -> GWR-12
+        MED -> GWR-13
+        MED -> GWR-14
+        MED -> GWR-15
+        MED -> GWR-16
+        MED -> GWR-17
+        MED -> GWR-18
+        MED -> GWR-19
+        MED -> GWR-20
+        GWR-01
+        GWR-02
+        GWR-03
+        GWR-04
+        GWR-05
+        GWR-06
+        GWR-07
+        GWR-08
+        GWR-09
+        GWR-10
+        GWR-11
+        GWR-12
+        GWR-13
+        GWR-14
+        GWR-15
+        GWR-16
+        GWR-17
+        GWR-18
+        GWR-19
+        GWR-20
+        GWR-01 -> MED
+        GWR-02 -> MED
+        GWR-03 -> MED
+        GWR-04 -> MED
+        GWR-05 -> MED
+        GWR-06 -> MED
+        GWR-07 -> MED
+        GWR-08 -> MED
+        GWR-09 -> MED
+        GWR-10 -> MED
+        GWR-11 -> MED
+        GWR-12 -> MED
+        GWR-13 -> MED
+        GWR-14 -> MED
+        GWR-15 -> MED
+        GWR-16 -> MED
+        GWR-17 -> MED
+        GWR-18 -> MED
+        GWR-19 -> MED
+        GWR-20 -> MED
+        MED prepLND
+        MED -> LND
+    @
+::
+
+# component attributes
+driverAttributes::
+  Verbosity = high
+  Profiling = 0
+::
+
+connectorAttributes::
+  Verbosity = 0
+  Profiling = 0
+::
+
+medAttributes::
+  Verbosity = 1
+  Diagnostic = 0
+  Profiling = 0
+  DataInitLnd = __DATAINITLND__
+  DataInitGwr = __DATAINITGWR__
+  EnsembleLnd = __ENSLND__
+  EnsembleGwr = __ENSGWR__
+  RemapLND = __REMAP__
+  RemapGWR = __REMAP__
+  MaskFrLND = FLD_MASK_WTR
+  MaskToLND = FLD_MASK_WTR
+  MaskFrGWR = FLD_MASK_WTR
+  MaskToGWR = FLD_MASK_WTR
+::
+
+lndAttributes::
+  Verbosity = 1
+  Diagnostic = 0
+  Profiling = 0
+  realize_all_export = false
+  config_file = lis.config
+  nest_to_nest = false
+  coupled_ensemble = __CPLENSLND__
+  initialize_import = __LNDINITIMP__
+  initialize_export = __LNDINITEXP__
+  missing_import = __LNDDATAMISSING__
+  output_directory = "LND_CAP_OUTPUT"
+::
+
+gwrAttributes::
+  Verbosity = 1
+  Diagnostic = 0
+  prep_filename = __GWRPRP__
+  filename = __GWRCFG__
+  initialize_import = __GWRINITIMP__
+  initialize_export = __GWRINITEXP__
+  thickness_of_soil_layers = __GWRSLTHICK__
+  check_import = FLD_CHECK_CURRT
+  coord_type = GRD_COORD_CLMVEGTF
+  coord_filename = __GWRCOORDFN__
+  output_directory = "./GWR_CAP_OUTPUT"
+::

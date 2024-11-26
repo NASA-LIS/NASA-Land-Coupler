@@ -126,7 +126,9 @@ lndAttributes::
   config_file = lis.config
   nest_to_nest = false
   coupled_ensemble = __CPLENSLND__
-  import_dependency = __IMPDEPLND__
+  initialize_import = __INITIMPLND__
+  initialize_export = __INITEXPLND__
+  missing_import = __DATAMISSINGLND__
   output_directory = LND_OUTPUT
 ::
 
@@ -142,6 +144,7 @@ hydAttributes::
   domain_id = 1
   nest_to_nest = false
   import_dependency = false
+  missing_import = MISSINGVAL_IGNORE
   write_restart = __WRRESTARTHYD__
   read_restart = __RDRESTARTHYD__
   input_directory = HYD_INPUT

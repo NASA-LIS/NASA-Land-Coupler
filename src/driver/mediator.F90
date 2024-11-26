@@ -125,7 +125,8 @@ module Mediator
 
   integer, target :: maskLND(1) = (/1/)
   integer, target :: maskWTR(1) = (/0/)
-  integer, parameter :: srcTermProcessing_Value = 0
+  integer :: srcTermProcessing_Value = 0
+  type(ESMF_TermOrder_Flag), dimension(1), parameter :: termorderflag_Value = (/ESMF_TERMORDER_SRCSEQ/)
   real(ESMF_KIND_R8) :: dfltVal = 9.99e20_ESMF_KIND_R8
   type(ESMF_PoleMethod_Flag), parameter :: polemethod=ESMF_POLEMETHOD_ALLAVG
   type(ESMF_UnmappedAction_Flag), parameter :: unmappedaction=ESMF_UNMAPPEDACTION_IGNORE
@@ -2188,6 +2189,7 @@ module Mediator
             regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
             polemethod=polemethod, &
             unmappedaction=unmappedaction, &
+            srcTermProcessing=srcTermProcessing_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -2198,6 +2200,7 @@ module Mediator
             regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
             polemethod=polemethod, &
             unmappedaction=unmappedaction, &
+            srcTermProcessing=srcTermProcessing_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -2208,6 +2211,7 @@ module Mediator
             regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
             polemethod=polemethod, &
             unmappedaction=unmappedaction, &
+            srcTermProcessing=srcTermProcessing_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -2217,6 +2221,7 @@ module Mediator
             regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
             polemethod=polemethod, &
             unmappedaction=unmappedaction, &
+            srcTermProcessing=srcTermProcessing_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -2790,6 +2795,7 @@ module Mediator
             is%wrap%HYD2LND(i)%dstFB, &
             routehandle=is%wrap%HYD2LND(i)%rh, &
             zeroregion=ESMF_REGION_SELECT, &
+            termorderflag=termorderflag_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -2828,6 +2834,7 @@ module Mediator
             is%wrap%GWR2LND(i)%dstFB, &
             routehandle=is%wrap%GWR2LND(i)%rh, &
             zeroregion=ESMF_REGION_SELECT, &
+            termorderflag=termorderflag_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -3020,6 +3027,7 @@ module Mediator
             is%wrap%LND2HYD(i)%dstFB, &
             routehandle=is%wrap%LND2HYD(i)%rh, &
             zeroregion=ESMF_REGION_SELECT, &
+            termorderflag=termorderflag_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -3058,6 +3066,7 @@ module Mediator
             is%wrap%GWR2HYD(i)%dstFB, &
             routehandle=is%wrap%GWR2HYD(i)%rh, &
             zeroregion=ESMF_REGION_SELECT, &
+            termorderflag=termorderflag_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -3250,6 +3259,7 @@ module Mediator
             is%wrap%LND2GWR(i)%dstFB, &
             routehandle=is%wrap%LND2GWR(i)%rh, &
             zeroregion=ESMF_REGION_SELECT, &
+            termorderflag=termorderflag_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
@@ -3288,6 +3298,7 @@ module Mediator
             is%wrap%HYD2GWR(i)%dstFB, &
             routehandle=is%wrap%HYD2GWR(i)%rh, &
             zeroregion=ESMF_REGION_SELECT, &
+            termorderflag=termorderflag_Value, &
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out

@@ -1,8 +1,12 @@
 [submodule "src/wrf_hydro_nwm"]
 	path = src/wrf_hydro_nwm
 	url = https://github.com/NCAR/wrf_hydro_nwm_public.git
-	branch = master
+	branch = main
 [submodule "src/LISF"]
 	path = src/LISF
 	url = https://github.com/NASA-LIS/LISF.git
+	branch = master
+[submodule "src/parflow"]
+	path = src/parflow
+	url = https://github.com/parflow/parflow.git
 	branch = master

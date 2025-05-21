@@ -30,6 +30,9 @@ module ESM
 #ifdef NUOPCCAP_WRFHYDRO
   use NUOPCCAP_WRFHYDRO, only: wrfhydro_ss => SetServices
 #endif
+#ifdef NUOPCCAP_PARFLOW
+  use NUOPCCAP_PARFLOW, only: parflow_ss => SetServices
+#endif
   use Mediator, only: medSS => SetServices
   use Fields
   use Flags
@@ -284,6 +287,26 @@ module ESM
                 line=__LINE__, file=__FILE__, rcToReturn=rc)
               return
 #endif
+            case ('parflow')
+#ifdef NUOPCCAP_PARFLOW
+              if (allocated(petList)) then
+                call NUOPC_DriverAddComp(driver, compName, parflow_ss, &
+                  petList=petList, comp=child, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                deallocate(petList)
+              else
+                call NUOPC_DriverAddComp(driver, compName, parflow_ss, &
+                  comp=child, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+              endif
+#else
+              call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+                msg="PARFLOW model missing from build", &
+                line=__LINE__, file=__FILE__, rcToReturn=rc)
+              return
+#endif
             case default
               call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
                 msg="invalid hyd_model: "//trim(model), &
@@ -436,11 +459,26 @@ module ESM
 
           ! SetServices for GWR
           select case (model)
-            case ('default')
+            case ('parflow','default')
+#ifdef NUOPCCAP_PARFLOW
+              if (allocated(petList)) then
+                call NUOPC_DriverAddComp(driver, compName, parflow_ss, &
+                  petList=petList, comp=child, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+                deallocate(petList)
+              else
+                call NUOPC_DriverAddComp(driver, compName, parflow_ss, &
+                  comp=child, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=__FILE__)) return  ! bail out
+              endif
+#else
               call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-                msg="GWR model missing from build", &
+                msg="PARFLOW model missing from build", &
                 line=__LINE__, file=__FILE__, rcToReturn=rc)
               return
+#endif
             case default
               call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
                 msg="invalid gwr_model: "//trim(model), &
@@ -482,11 +520,26 @@ module ESM
 
         ! SetServices for GWR
         select case (model)
-          case ('default')
+          case ('parflow','default')
+#ifdef NUOPCCAP_PARFLOW
+            if (allocated(petList)) then
+              call NUOPC_DriverAddComp(driver, "GWR", parflow_ss, &
+                petList=petList, comp=child, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+              deallocate(petList)
+            else
+              call NUOPC_DriverAddComp(driver, "GWR", parflow_ss, &
+                comp=child, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return  ! bail out
+            endif
+#else
             call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-              msg="GWR model missing from build", &
+              msg="PARFLOW model missing from build", &
               line=__LINE__, file=__FILE__, rcToReturn=rc)
             return
+#endif
           case default
             call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
               msg="invalid gwr_model: "//trim(model), &

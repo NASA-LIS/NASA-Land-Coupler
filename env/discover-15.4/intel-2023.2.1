@@ -100,6 +100,9 @@ set   def_lis_crtm_prof   /discover/nobackup/projects/lis/libs/CRTM_Profile_Util
 set   def_lis_cmem        /discover/nobackup/projects/lis/libs/LIS-MEM/intel_18_0_3_222
 set   def_lis_lapack      /discover/nobackup/projects/lis/libs/lapack/3.6.0_intel_14_0_3_174
 set   def_wrfhydro_netcdf /discover/nobackup/projects/lis/libs/sles-15.4/netcdf/4.9.2_intel-2023.2.1
+set   def_parflow_hdf5    /discover/nobackup/projects/lis/libs/sles-15.4/hdf5/1.14.2_intel-2023.2.1
+set   def_parflow_hypre   /discover/nobackup/projects/nca/ParFlow_DATA/install/discover-15.4/hypre-2.31.0_intel-2023.2.1_impi-2021.11
+set   def_parflow_silo    /discover/nobackup/projects/nca/ParFlow_DATA/install/discover-15.4/silo-4.10.2_intel-2023.2.1_impi-2021.11
 
 setenv   DEV_ENV         LISF_7_5_INTEL_2023_2_1
 setenv   LIS_ARCH        linux_ifc
@@ -159,6 +162,15 @@ setenv   WRF_HYDRO_NUOPC     1
 setenv   WRF_HYDRO_NUOPC_LSM 0
 setenv   WRF_HYDRO_NUDGING   0
 setenv   HYDRO_D             0
+
+setenv   PF_SRC             "$def_nlc_dir/src/parflow"
+setenv   PARFLOW_DIR        "$def_nlc_dir/install/PARFLOW"
+setenv   PARFLOW_HYPRE_DIR  $def_parflow_hypre
+setenv   PARFLOW_HDF5_DIR   $def_parflow_hdf5
+setenv   PARFLOW_SILO_DIR   $def_parflow_silo
+setenv   PARFLOW_AMPS_LAYER mpi1
+setenv   PARFLOW_HAVE_CLM   OFF
+setenv   PARFLOW            1
 
 setenv CMAKE_C_COMPILER       mpicc
 setenv CMAKE_CXX_COMPILER     mpicxx

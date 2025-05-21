@@ -37,7 +37,9 @@ lndAttributes::
   realize_all_export = false
   config_file = lis.config
   nest_to_nest = false
-  import_dependency = __IMPDEPLND__
+  initialize_import = __INITIMPLND__
+  initialize_export = __INITEXPLND__
+  missing_import = __DATAMISSINGLND__
   output_directory = LND_OUTPUT
 ::
 

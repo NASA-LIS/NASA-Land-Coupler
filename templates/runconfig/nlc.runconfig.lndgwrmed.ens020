@@ -19,6 +19,7 @@ instance_count_gwr: 20
 time_step:  __TIMESTEP__
 start_time: __STARTTIME__
 stop_time:  __STOPTIME__
+running_mode: "__RUNMODE__"
 
 # run sequence
 runSeq::

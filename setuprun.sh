@@ -248,6 +248,9 @@ if [[ $RUNCONFIG == *"lnd"* ]]; then
     ln -s $DATA_LND/LIS_INPUTS $RUNDIR/LIS_INPUTS
     ln -s $DATA_LND/LIS_RSTRT $RUNDIR/LIS_RSTRT
     ln -s $DATA_LND/LIS_FORCING $RUNDIR/LIS_FORCING
+    if [ -d $DATA_LND/LIS_OBS ]; then
+      ln -s $DATA_LND/LIS_OBS $RUNDIR/LIS_OBS
+    fi
     if [ -d $DATA_LND/NOAH33_PARMS ]; then
       ln -s $DATA_LND/NOAH33_PARMS $RUNDIR/NOAH33_PARMS
     fi

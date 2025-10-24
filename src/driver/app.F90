@@ -35,19 +35,12 @@ program esmApp
   type(ESMF_Time)         :: stepEndTime
   type(ESMF_TimeInterval) :: timeStep
   type(ESMF_Clock)        :: clock
-  integer                 :: rewindToYY
-  integer                 :: rewindToMM
+  integer                 :: startYY
+  integer                 :: startMM
   integer                 :: rewindAtYY
   integer                 :: rewindAtMM
   type(ESMF_Time)         :: rewindAt
-  integer                 :: phase
-
-  character(len=32)       :: currTimeStr
-  character(len=32)       :: startTimeStr
-  character(len=32)       :: stopTimeStr
-  character(len=32)       :: rewindAtStr
-  character(len=32)       :: stepEndTimeStr
-  character(len=160)      :: msgString
+  integer                 :: rewindPhase
 
   ! Initialize ESMF
 #if ESMF_VERSION_MAJOR >= 8 && ESMF_VERSION_MINOR >= 2
@@ -62,7 +55,7 @@ program esmApp
 #error "ESMF 8.2 or higher is required."
 #endif
 
-  call ESMF_LogWrite("NLC App STARTING", ESMF_LOGMSG_INFO, rc=rc)
+  call ESMF_LogWrite("NLC: Application starting", ESMF_LOGMSG_INFO, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &
     file=__FILE__)) &
@@ -92,30 +85,54 @@ program esmApp
     line=__LINE__, &
     file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  call ESMF_LogWrite("NLC: running_mode="//trim(runMode), &
+    ESMF_LOGMSG_INFO, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   if (runMode .eq. "ensemble smoother") then
-    call ESMF_TimeGet(startTime, yy=rewindAtYY, mm=rewindAtMM, rc=rc)
+    call ESMF_TimeGet(startTime, yy=startYY, mm=startMM, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    if (rewindAtMM .ge. 11) rewindAtYY = rewindAtYY + 1
-    rewindAtMM = rewindAtMM + 2
-    if (rewindAtMM .gt. 12) rewindAtMM = rewindAtMM - 12
-    call ESMF_TimeSet(rewindAt, yy=rewindAtYY, mm=rewindAtMM, &
-      dd=1, h=0, m=0, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    if (startMM .eq. 11) then
+      call ESMF_TimeSet(rewindAt, &
+        yy=(startYY + 1), mm=1, dd=1, h=0, m=0, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    elseif (startMM .eq. 12) then
+      call ESMF_TimeSet(rewindAt, &
+        yy=(startYY + 1), mm=2, dd=1, h=0, m=0, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    else
+      call ESMF_TimeSet(rewindAt, &
+        yy=startYY, mm=(startMM + 2), dd=1, h=0, m=0, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    endif
     if (rewindAt .ge. stopTime) then
       timeStep = stopTime - startTime
       rewindAt = stopTime + timeStep
     else
       timeStep = rewindAt - startTime
     endif
-  else
+  elseif (runMode .eq. "retrospective") then
     timeStep = stopTime - startTime
     rewindAt = stopTime + timeStep
+  else
+    call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+      msg="NLC: Unknown running_mode: "//trim(runMode), &
+      line=__LINE__, file=__FILE__, rcToReturn=rc)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   endif
 
   ! Create the application Clock
@@ -157,62 +174,13 @@ program esmApp
 
   ! Explicit time stepping loop on the external level, here based on ESMF_Clock
   call NUOPC_CompSearchPhaseMap(esmComp, methodflag=ESMF_METHOD_FINALIZE, &
-    phaseLabel=label_ExternalReset, phaseIndex=phase, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    call ESMF_Finalize(endflag=ESMF_END_ABORT)
-
-  ! Print runMode
-  call ESMF_TimeGet(startTime, timeString=startTimeStr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  call ESMF_TimeGet(stopTime, timeString=stopTimeStr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  call ESMF_LogWrite("APP: BEGIN RUN startTime="//trim(startTimeStr)// &
-                     " stopTime="//trim(stopTimeStr)//  &
-                     " runMode="//trim(runMode), ESMF_LOGMSG_INFO, rc=rc)
+    phaseLabel=label_ExternalReset, phaseIndex=rewindPhase, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &
     file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   do while (.not.ESMF_ClockIsStopTime(clock, rc=rc))
-
-    ! Clock diagnostics
-    call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    stepEndTime = currTime + timeStep
-    call ESMF_TimeGet(currTime, timeString=currTimeStr, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    call ESMF_TimeGet(rewindAt, timeString=rewindAtStr, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    call ESMF_TimeGet(stepEndTime, timeString=stepEndTimeStr, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    call ESMF_LogWrite("APP: BEFORE STEP currTime="//trim(currTimeStr)// &
-                       " stepEndTime="//trim(stepEndTimeStr)//  &
-                       " rewindAt="//trim(rewindAtStr), ESMF_LOGMSG_INFO, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! Call run for earth the system component
     call ESMF_GridCompRun(esmComp, clock=clock, userRc=urc, rc=rc)
@@ -237,61 +205,56 @@ program esmApp
       file=__FILE__)) &
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-    ! Clock diagnostics
-    call ESMF_TimeGet(currTime, timeString=currTimeStr, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    call ESMF_LogWrite("APP: AFTER STEP currTime="//trim(currTimeStr), rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-
     if (currTime .ge. stopTime) then
-      call ESMF_LogWrite("APP: End of simulation - currTime >= stopTime", rc=rc)
+      call ESMF_LogWrite("NLC: currTime >= stopTime", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         call ESMF_Finalize(endflag=ESMF_END_ABORT)
       continue
     elseif (currTime .ge. rewindAt) then
-      call ESMF_LogWrite("APP: Rewind - currTime >= rewindAt", rc=rc)
+      call ESMF_LogWrite("NLC: currTime >= rewindAt", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      ! Rewind currTime to 1 month prior to rewindAt
-      call ESMF_TimeGet(rewindAt, yy=rewindToYY, mm=rewindToMM, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      if (rewindToMM .eq. 1) rewindToYY = rewindToYY - 1
-      rewindToMM = rewindToMM - 1
-      if (rewindToMM .lt. 1) rewindToMM = rewindToMM + 12
-      call ESMF_TimeSet(currTime, yy=rewindToYY, mm=rewindToMM, &
-        dd=1, h=0, m=0, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      ! Increment rewindAt by 1 month
       call ESMF_TimeGet(rewindAt, yy=rewindAtYY, mm=rewindAtMM, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      if (rewindAtMM .ge. 12) rewindAtYY = rewindAtYY + 1
-      rewindAtMM = rewindAtMM + 1
-      if (rewindAtMM .gt. 12) rewindAtMM = rewindAtMM - 12
-      call ESMF_TimeSet(rewindAt, yy=rewindAtYY, mm=rewindAtMM, &
-        dd=1, h=0, m=0, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      ! Rewind currTime to 1 month prior to rewindAt
+      if (rewindAtMM .eq. 1) then
+        call ESMF_TimeSet(currTime, &
+          yy=(rewindAtYY - 1), mm=12, dd=1, h=0, m=0, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      else
+        call ESMF_TimeSet(currTime, &
+          yy=rewindAtYY, mm=(rewindAtMM - 1), dd=1, h=0, m=0, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      endif
+      ! Increment rewindAt by 1 month
+      if (rewindAtMM .eq. 12) then
+        call ESMF_TimeSet(rewindAt, &
+          yy=(rewindAtYY + 1), mm=1, dd=1, h=0, m=0, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      else
+        call ESMF_TimeSet(rewindAt, &
+          yy=rewindAtYY, mm=(rewindAtMM + 1), dd=1, h=0, m=0, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      endif
       if (rewindAt .ge. stopTime) then
         timeStep = stopTime - currTime
         rewindAt = stopTime + timeStep
@@ -305,7 +268,7 @@ program esmApp
         line=__LINE__, &
         file=__FILE__)) &
         call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_GridCompFinalize(esmComp, phase=phase, clock=clock, &
+      call ESMF_GridCompFinalize(esmComp, phase=rewindPhase, clock=clock, &
         userRc=urc, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
@@ -315,44 +278,6 @@ program esmApp
         line=__LINE__, &
         file=__FILE__)) &
         call ESMF_Finalize(endflag=ESMF_END_ABORT)
-
-
-      ! Clock diagnostics
-      call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      stepEndTime = currTime + timeStep
-      call ESMF_TimeGet(currTime, timeString=currTimeStr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_TimeGet(rewindAt, timeString=rewindAtStr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_TimeGet(stepEndTime, timeString=stepEndTimeStr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_TimeGet(stopTime, timeString=stopTimeStr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_LogWrite("APP: AFTER REWIND currTime="//trim(currTimeStr)// &
-                         " stepEndTime="//trim(stepEndTimeStr)//  &
-                         " rewindAt="//trim(rewindAtStr)// &
-                         " stopTime="//trim(stopTimeStr), ESMF_LOGMSG_INFO, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-
     endif
 
   enddo
@@ -375,7 +300,7 @@ program esmApp
     file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  call ESMF_LogWrite("NLC App FINISHED", ESMF_LOGMSG_INFO, rc=rc)
+  call ESMF_LogWrite("NLC: Application finished", ESMF_LOGMSG_INFO, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &
     file=__FILE__)) &

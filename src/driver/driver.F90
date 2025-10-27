@@ -22,6 +22,7 @@ module ESM
     driver_routine_SS             => SetServices, &
     driver_label_SetModelServices => label_SetModelServices, &
     driver_label_SetRunSequence   => label_SetRunSequence, &
+    driver_label_SetRunClock      => label_SetRunClock, &
     driver_label_ModifyCplLists   => label_ModifyCplLists
 
 #ifdef NUOPCCAP_LIS
@@ -74,8 +75,18 @@ module ESM
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    call NUOPC_CompSpecialize(driver, specLabel=driver_label_SetRunClock, &
+      specRoutine=SetRunClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
     call NUOPC_CompSpecialize(driver, specLabel=driver_label_ModifyCplLists, &
       specRoutine=ModifyCplLists, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call NUOPC_CompSetEntryPoint(driver, ESMF_METHOD_FINALIZE, &
+      phaseLabelList=(/label_ExternalReset/), userRoutine=ExternalReset, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -872,6 +883,36 @@ module ESM
 
   !-----------------------------------------------------------------------------
 
+  subroutine SetRunClock(driver, rc)
+    type(ESMF_GridComp)  :: driver
+    integer, intent(out) :: rc
+
+    ! local variables
+    type(ESMF_Clock)        :: parentClock
+    type(ESMF_Time)         :: parentCurr
+    type(ESMF_TimeInterval) :: parentStep
+    type(ESMF_Clock)        :: clock
+
+    rc = ESMF_SUCCESS
+
+    call NUOPC_DriverGet(driver, parentClock=parentClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockGet(parentClock, currTime=parentCurr, &
+      timeStep=parentStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_GridCompGet(driver, clock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockSet(clock, currTime=parentCurr, stopTime=(parentCurr+parentStep), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
   subroutine isComponentEnabled(config, label, isEnabled, rc)
     type(ESMF_Config), intent(inout) :: config
     character(len=*), intent(in)     :: label
@@ -1143,29 +1184,8 @@ module ESM
 
       do i=1, size(connectorList)
         ! get connector information
-  !      call NUOPC_CompGet(connectorList(i), name=connectorName, verbosity=verbosity, &
-  !        diagnostic=diagnostic, rc=rc)
-  !      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-  !        line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_CplCompGet(connectorList(i), name=connectorName, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_AttributeGet(connectorList(i), name="Diagnostic", value=value, &
-          defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        diagnostic = ESMF_UtilString2Int(value, &
-          specialStringList=(/"min","max","debug"/), &
-          specialValueList=(/0,65535,65536/), rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_AttributeGet(connectorList(i), name="Verbosity", value=value, &
-          defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=__FILE__)) return  ! bail out
-        verbosity = ESMF_UtilString2Int(value, &
-          specialStringList=(/"min","max","debug"/), &
-          specialValueList=(/0,65535,65536/), rc=rc)
+        call NUOPC_CompGet(connectorList(i), name=connectorName, verbosity=verbosity, &
+          diagnostic=diagnostic, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
         if (verbosity>0) then
@@ -1343,6 +1363,76 @@ module ESM
         line=__LINE__, file=__FILE__, rcToReturn=rc)
       return
     endif
+
+  end subroutine
+
+  subroutine ExternalReset(driver, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: driver
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+
+    ! local variables
+    integer                      :: verbosity, diagnostic
+    type(ESMF_Clock)             :: parentClock
+    type(ESMF_Time)              :: parentTime
+    character(len=32)            :: parentTimeStr
+    type(ESMF_Clock)             :: modelClock
+    type(ESMF_GridComp), pointer :: compList(:)
+    integer                      :: i
+    logical                      :: isPetLocal
+    character(len=160)           :: msgString
+
+    rc = ESMF_SUCCESS
+
+    ! get verbosity, diagnostic
+    call NUOPC_CompGet(driver, verbosity=verbosity, diagnostic=diagnostic, &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! get currTime from external application
+    call NUOPC_DriverGet(driver, parentClock=parentClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call ESMF_ClockGet(parentClock, currTime=parentTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    if (verbosity>0) then
+      call ESMF_TimeGet(parentTime, timeString=parentTimeStr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite("NLC: Resetting clock to "//trim(parentTimeStr), &
+        ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
+    ! reset currTime for driver
+    call ESMF_ClockSet(clock, currTime=parentTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! reset currTime for each component
+    nullify(compList)
+    call NUOPC_DriverGetComp(driver, compList=compList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    do i=1, size(compList)
+      isPetLocal = ESMF_GridCompIsPetLocal(compList(i), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      if (isPetLocal) then
+        call ESMF_GridCompGet(compList(i), clock=modelClock, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_ClockSet(modelClock, currTime=parentTime, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
+    enddo
+    if (associated(compList)) deallocate(compList)
 
   end subroutine
 

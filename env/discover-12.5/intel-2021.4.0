@@ -170,14 +170,15 @@ setenv   WRF_HYDRO_NUOPC_LSM 0
 setenv   WRF_HYDRO_NUDGING   0
 setenv   HYDRO_D             0
 
-setenv   PF_SRC             "$def_nlc_dir/src/parflow"
-setenv   PARFLOW_DIR        "$def_nlc_dir/install/PARFLOW"
-setenv   PARFLOW_HYPRE_DIR  $def_parflow_hypre
-setenv   PARFLOW_HDF5_DIR   $def_parflow_hdf5
-setenv   PARFLOW_SILO_DIR   $def_parflow_silo
-setenv   PARFLOW_AMPS_LAYER mpi1
-setenv   PARFLOW_HAVE_CLM   OFF
-setenv   PARFLOW            1
+setenv   PF_SRC                "$def_nlc_dir/src/parflow"
+setenv   PARFLOW_DIR           "$def_nlc_dir/install/PARFLOW"
+setenv   PARFLOW_ENABLE_NETCDF FALSE
+setenv   PARFLOW_HYPRE_DIR     $def_parflow_hypre
+setenv   PARFLOW_HDF5_DIR      $def_parflow_hdf5
+setenv   PARFLOW_SILO_DIR      $def_parflow_silo
+setenv   PARFLOW_AMPS_LAYER    mpi1
+setenv   PARFLOW_HAVE_CLM      OFF
+setenv   PARFLOW               1
 
 setenv CMAKE_C_COMPILER       mpicc
 setenv CMAKE_CXX_COMPILER     mpicxx

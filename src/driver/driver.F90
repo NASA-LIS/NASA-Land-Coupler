@@ -34,6 +34,9 @@ module ESM
 #ifdef NUOPCCAP_PARFLOW
   use NUOPCCAP_PARFLOW, only: parflow_ss => SetServices
 #endif
+#ifdef NUOPCCAP_MPAS_ATM
+  use NUOPCCAP_MPAS_ATM, only: mpas_atm_ss => SetServices
+#endif
   use Mediator, only: medSS => SetServices
   use Fields
   use Flags
@@ -124,7 +127,7 @@ module ESM
     type(ESMF_CplComp)            :: connector
     type(ESMF_Config)             :: config
     type(NUOPC_FreeFormat)        :: attrFF
-    logical                       :: enabledLnd, enabledHyd, enabledGwr
+    logical                       :: enabledAtm, enabledLnd, enabledHyd, enabledGwr
     logical                       :: enabledMed
     integer, allocatable          :: petList(:)
     logical                       :: multiInst
@@ -147,6 +150,72 @@ module ESM
     call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! #################
+    ! Atmosphere Models
+    ! #################
+
+    call isComponentEnabled(config, "atm", isEnabled=enabledAtm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    if (enabledAtm) then
+
+      ! get model from config
+      call getModelFromConfig(config, "atm_model:", model=model, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      ! get PET lists from config
+      call getPetListFromConfig(config, "pets_atm:", petList=petList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      ! SetServices for ATM
+      select case (model)
+        case ('mpas','default')
+#ifdef NUOPCCAP_MPAS_ATM
+          if (allocated(petList)) then
+            call NUOPC_DriverAddComp(driver, "ATM", mpas_atm_ss, &
+              petList=petList, comp=child, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+            deallocate(petList)
+          else
+            call NUOPC_DriverAddComp(driver, "ATM", mpas_atm_ss, &
+              comp=child, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          endif
+#else
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg="MPAS model missing from build", &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+#endif
+        case default
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg="invalid atm_model: "//trim(model), &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return
+      endselect
+
+      call NUOPC_CompAttributeSet(child, name="Verbosity", value="0", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      ! read ATM attributes from config file into FreeFormat
+      attrFF = NUOPC_FreeFormatCreate(config, label="atmAttributes::", &
+        relaxedflag=.true., rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call NUOPC_CompAttributeIngest(child, attrFF, addFlag=.true., rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+    endif ! enabledAtm
 
     ! ###########
     ! Land Models

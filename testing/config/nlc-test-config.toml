@@ -28,19 +28,18 @@ type = "nccmp"
 file = "LIS_OUTPUT/lw_pf/SURFACEMODEL/200501/LIS_HIST_200501020000.d01.nc"
 args = [ "--Tolerance=1e-1", "--variable=SoilMoist_tavg,SoilTemp_tavg,GWS_tavg"]
 
-# [[tests]]
-# # Example Test
-# name = "EXAMPLE"
-# mpi = true
-# processors = 4
-# input = [ "https://github.com/esmf-org/NASA-Land-Coupler-Data/releases/download/v0.1.0/nlc_testdata_00N.tar.gz" ]
-# components = [ "COMP" ]
-# [[tests.checks]]
-# type = "nccmp"
-# file = "path_to_file"
-# args = [
-#    "--join-tolerance",
-#     "--tolerance=1e1",
-#     "--Tolerance=1e1",
-#     "--variable=u10,v10,rainc,q2,t2m,pressure,smois"
-# ]
+[[tests]]
+# Standalone MPAS Atmosphere
+name = "MPAS_ATM"
+mpi = true
+processors = 4
+input = [ "https://github.com/esmf-org/NASA-Land-Coupler-Data/releases/download/v0.1.0/nlc_testdata_003.tar.gz" ]
+components = [ "MPAS_ATM" ]
+[[tests.checks]]
+type = "nccmp"
+file = "history.2015-07-11_14.00.00.nc"
+args = [ "--tolerance=1e1", "--variable=u10,v10,rainc,q2,t2m,smois" ]
+[[tests.checks]]
+type = "nccmp"
+file = "history.2015-07-11_14.00.00.nc"
+args = [ "--Tolerance=1e1", "--variable=pressure" ]

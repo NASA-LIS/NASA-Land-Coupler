@@ -131,6 +131,18 @@ if [ $RC -ne 0 ]; then
   exit 1
 fi
 
+printf "*************************************************\n"
+printf "***           PARFLOW CONFIGURATION           ***\n"
+printf "*************************************************\n"
+pftools=$(python3 -c "import parflow" 2>&1); RC=$?
+if [[ $RC -ne 0 ]]; then
+  printf "\e[33mWARNING: error detecting parflow python module\e[0m\n"
+  printf "\e[33m  Try installing parflow > pip install \"pftools[all]==1.3.15\"\e[0m\n"
+  printf "  \n%s\n\n" "$pftools"
+fi
+printf "Parflow checks complete.\n"
+printf "\n"
+
 # save current configuration to a file
 cat > "${NLC_DIR}/.nlc_config.sh" << EOF
 export SYSTEM="${SYSTEM}"

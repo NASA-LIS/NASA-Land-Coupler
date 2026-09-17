@@ -28,6 +28,9 @@ list(APPEND nlc_app_files
 )
 add_executable(NLC.exe ${nlc_app_files})
 
+# discover MPI
+find_package(MPI COMPONENTS Fortran)
+
 # link ESMF
 find_package(ESMF MODULE REQUIRED)
 if (NOT ESMF_FOUND)
@@ -139,3 +142,69 @@ target_compile_definitions(NLC.exe PRIVATE "${nlc_defs_private}")
 # NLC install
 install(TARGETS NLC.exe DESTINATION .)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/fd_nlc.yaml DESTINATION .)
+
+# Configure build tests
+include(CTest)
+option(NLC_TEST_CACHE_DATA "Cache remote input files for tests" ON)
+if (BUILD_TESTING)
+  message(STATUS "Build tests: ${BUILD_TESTING}")
+  include(NLCTesting)
+
+  # Load test data configuration from TOML
+  set(NLC_TEST_CONFIG_FILE "${PROJECT_SOURCE_DIR}/testing/config/nlc-test-config.toml")
+  if (NOT EXISTS ${NLC_TEST_CONFIG_FILE})
+    message(FATAL_ERROR "Test configuration file not found: ${NLC_TEST_CONFIG_FILE}")
+  endif()
+  set(NLC_TEST_CONFIG_PARSE "${PROJECT_SOURCE_DIR}/testing/scripts/nlc_test_config_parser.py")
+  if (NOT EXISTS ${NLC_TEST_CONFIG_PARSE})
+    message(FATAL_ERROR "Test configuration parser not found: ${NLC_TEST_CONFIG_PARSE}")
+  endif()
+  execute_process(
+    COMMAND ${Python3_EXECUTABLE} ${NLC_TEST_CONFIG_PARSE} ${NLC_TEST_CONFIG_FILE} --cmake
+    OUTPUT_VARIABLE NLC_TEST_CONFIG_OUTPUT
+    RESULT_VARIABLE NLC_TEST_CONFIG_RESULT
+  )
+  if (NOT NLC_TEST_CONFIG_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to load test configuration")
+  endif()
+  cmake_language(EVAL CODE ${NLC_TEST_CONFIG_OUTPUT})
+
+  foreach(NLC_TEST_NAME IN LISTS NLC_TESTS)
+    # Process test-specific variables
+    string(TOUPPER "${NLC_TEST_NAME}" NLC_TEST_NAME)
+    set(NLC_TEST_MPI ${NLC_TEST_${NLC_TEST_NAME}_MPI})
+    set(NLC_TEST_COMPS ${NLC_TEST_${NLC_TEST_NAME}_COMPS})
+
+    # Check if MPI is required for the test and if MPI is found
+    if (NLC_TEST_MPI)
+      if (NOT MPI_Fortran_FOUND)
+        message(FATAL_ERROR "MPI not found, cannot add MPI test: ${NLC_TEST_NAME}")
+      endif()
+    endif()
+
+    # Check if the components required for the test are enabled
+    foreach(NLC_TEST_COMP IN LISTS NLC_TEST_COMPS)
+      string(TOUPPER "${NLC_TEST_COMP}" NLC_TEST_COMP)
+      if(NOT ENABLE_${NLC_TEST_COMP})
+        message(FATAL_ERROR "Component ${NLC_TEST_COMP} is not enabled, cannot add test: ${NLC_TEST_NAME}")
+      endif()
+    endforeach()
+
+    # Add the test using the nlc_add_test function
+    nlc_add_test(
+      NAME ${NLC_TEST_NAME}
+      EXECUTABLE $<TARGET_FILE:NLC.exe>
+      CONFIG_FILE ${NLC_TEST_CONFIG_FILE}
+      CACHE_DATA ${NLC_TEST_CACHE_DATA}
+    )
+  endforeach()
+
+else()
+  message(STATUS "Build tests: OFF")
+endif()
+
+add_custom_target(nlc_tests
+  COMMAND ${CMAKE_CTEST_COMMAND} -L nlc_test
+  COMMENT "Running NLC regression tests"
+  DEPENDS NLC.exe
+)

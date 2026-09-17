@@ -36,6 +36,14 @@ auto_environment () {
       BATCH_SYS="${BATCH_SYS:-sbatch}"
       CPPERNODE="${CPPERNODE:-28}"
       DATA_ROOT="${DATA_ROOT:-/discover/nobackup/projects/nu-wrf/lishydro/data}"
+      local curr_shell_opts=$-
+      set +u
+      if command -v conda >/dev/null 2>&1; then
+        eval "$(conda shell.bash hook)"
+        conda deactivate
+        [[ "$curr_shell_opts" == *u* ]] && set -u
+      fi
+      module purge
       module use "${2}/discover-15.4/"
       module load "intel-2023.2.1";;
     *) printf "ERROR: no modulefile file for ${1}\n"; exit 1 ;;

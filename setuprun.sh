@@ -17,8 +17,6 @@ usage () {
   printf "  preconfigured use case\n"
   printf "\n"
   printf "OPTIONS\n"
-  printf "  --env-auto-off\n"
-  printf "      do not load preconfigured environment based on system\n"
   printf "  --dir-app=PATH\n"
   printf "      application directory\n"
   printf "  --data-root=PATH\n"
@@ -74,7 +72,7 @@ DIR_RUNSCP="${NLC_DIR}/templates/runscripts"
 USECASE=""
 SYSTEM=""
 ENV_DIR="${NLC_DIR}/env"
-ENV_AUTO=true
+ENV_AUTO=false
 DATA_ROOT=""
 BATCH_SYS=""
 CPPERNODE=""
@@ -94,11 +92,6 @@ while [ ! -z "$1" ]; do
   case $1 in
     --help|-h) usage; exit 0 ;;
     --list-usecases|-l) list_usecases; exit 0 ;;
-    --env-auto-off) ENV_AUTO=true ;;
-    --env-auto-off=?*) printf "ERROR: $1 argument ignored.\n"
-                   usage; exit 1 ;;
-    --env-auto-off=) printf "ERROR: $1 argument ignored.\n"
-                   usage; exit 1 ;;
     --dir-app=?*) DIR_APP=${1#*=} ;;
     --dir-app|--dir-app=) printf "ERROR: $1 requires an argument.\n"
                           usage; exit 1 ;;
@@ -126,13 +119,16 @@ set -eu
 
 source scripts/setupenv.sh
 
-# automatically determine system
-if [ -z "${SYSTEM}" ] ; then
-  SYSTEM=$(find_system)
+# load saved configuration if it exists
+if [ -f "${NLC_DIR}/.nlc_config.sh" ]; then
+  source "${NLC_DIR}/.nlc_config.sh"
+else
+  printf "ERROR: NLC has not been configured.\n"
+  printf "  Please run './configure.sh' before setting up the run.\n"
+  exit 1
 fi
 
 # auto modulefile
-export NLC_DIR="${NLC_DIR}"
 if [ "${ENV_AUTO}" = true ] ; then
   auto_environment ${SYSTEM} ${ENV_DIR}
 fi

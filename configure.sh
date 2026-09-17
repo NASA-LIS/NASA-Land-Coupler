@@ -14,8 +14,8 @@ usage () {
   printf "Usage: $0 [OPTIONS]...\n"
   printf "\n"
   printf "OPTIONS\n"
-  printf "  --env-auto-off\n"
-  printf "      do not load preconfigured environment based on system\n"
+  printf "  --env-auto\n"
+  printf "      load preconfigured environment based on system\n"
   printf "  --build-type=BUILD_TYPE\n"
   printf "      build type; valid options are 'debug', 'release'.\n"
   printf "  --auto\n"
@@ -42,7 +42,7 @@ settings () {
 NLC_DIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 SYSTEM=""
 ENV_DIR="${NLC_DIR}/env"
-ENV_AUTO=true
+ENV_AUTO=false
 BUILD_TYPE="Release"
 INTERACTIVE=true
 VERBOSE=false
@@ -52,9 +52,13 @@ RC=0
 while :; do
   case $1 in
     --help|-h) usage; exit 0 ;;
-    --env-auto-off) ENV_AUTO=false ;;
-    --env-auto-off=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --env-auto-off=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --env-auto) ENV_AUTO=true ;;
+    --env-auto=?*)
+        case ${1#*=} in
+          true|TRUE|1) ENV_AUTO=true ;;
+          *) ENV_AUTO=false ;;
+        esac ;;
+    --env-auto=) printf "ERROR: $1 requires a value.\n"; usage; exit 1 ;;
     --build-type=?*) BUILD_TYPE=${1#*=} ;;
     --build-type) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --build-type=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
@@ -126,6 +130,26 @@ if [ $RC -ne 0 ]; then
   printf "\e[31mERROR: configuration failed\e[0m\n"
   exit 1
 fi
+
+printf "*************************************************\n"
+printf "***           PARFLOW CONFIGURATION           ***\n"
+printf "*************************************************\n"
+pftools=$(python3 -c "import parflow" 2>&1); RC=$?
+if [[ $RC -ne 0 ]]; then
+  printf "\e[33mWARNING: error detecting parflow python module\e[0m\n"
+  printf "\e[33m  Try installing parflow > pip install \"pftools[all]==1.3.15\"\e[0m\n"
+  printf "  \n%s\n\n" "$pftools"
+fi
+printf "Parflow checks complete.\n"
+printf "\n"
+
+# save current configuration to a file
+cat > "${NLC_DIR}/.nlc_config.sh" << EOF
+export SYSTEM="${SYSTEM}"
+export ENV_AUTO="${ENV_AUTO}"
+export BUILD_TYPE="${BUILD_TYPE}"
+export NLC_DIR="${NLC_DIR}"
+EOF
 
 printf "\e[32mSUCCESS: configuration complete\e[0m\n"
 exit 0

@@ -14,8 +14,6 @@ usage () {
   printf "Usage: $0 [OPTIONS]...\n"
   printf "\n"
   printf "OPTIONS\n"
-  printf "  --env-auto-off\n"
-  printf "      do not load preconfigured environment based on system\n"
   printf "  --components=\"COMPONENT1,COMPONENT2...\"\n"
   printf "      components to include in build; delimited with ','\n"
   printf "  --continue\n"
@@ -31,6 +29,10 @@ usage () {
   printf "      installation prefix\n"
   printf "  --verbose, -v\n"
   printf "      build with verbose output\n"
+  printf "  --test, -t\n"
+  printf "      build and run tests\n"
+  printf "  --help, -h\n"
+  printf "      print this help message\n"
   printf "\n"
 }
 
@@ -48,6 +50,7 @@ settings () {
   printf "  CONTINUE=${CONTINUE}\n"
   printf "  BUILD_TYPE=${BUILD_TYPE}\n"
   printf "  VERBOSE=${VERBOSE}\n"
+  printf "  TEST=${TEST}\n"
   printf "\n"
 }
 
@@ -57,12 +60,13 @@ BUILD_DIR=${NLC_DIR}/build
 INSTALL_DIR=${NLC_DIR}/install
 SYSTEM=""
 ENV_DIR="${NLC_DIR}/env"
-ENV_AUTO=true
+ENV_AUTO=false
 COMPONENTS=""
 BUILD_TYPE="Release"
 CLEAN=false
 CONTINUE=false
 VERBOSE=false
+TEST=false
 
 # required arguments
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -74,15 +78,9 @@ fi
 while :; do
   case $1 in
     --help|-h) usage; exit 0 ;;
-    --env-auto-off) ENV_AUTO=true ;;
-    --env-auto-off=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
-    --env-auto-off=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --components=?*) COMPONENTS=${1#*=} ;;
     --components) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --components=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --build-type=?*) BUILD_TYPE=${1#*=} ;;
-    --build-type) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
-    --build-type=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --build-dir=?*) BUILD_DIR=${1#*=} ;;
     --build-dir) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
     --build-dir=) printf "ERROR: $1 requires an argument.\n"; usage; exit 1 ;;
@@ -98,6 +96,9 @@ while :; do
     --verbose|-v) VERBOSE=true ;;
     --verbose=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     --verbose=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --test|-t) TEST=true ;;
+    --test=?*) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
+    --test=) printf "ERROR: $1 argument ignored.\n"; usage; exit 1 ;;
     -?*) printf "ERROR: Unknown option $1\n"; usage; exit 1 ;;
     *) break
   esac
@@ -108,13 +109,16 @@ set -eu
 
 source scripts/setupenv.sh
 
-# automatically determine system
-if [ -z "${SYSTEM}" ] ; then
-  SYSTEM=$(find_system)
+# load saved configuration if it exists
+if [ -f "${NLC_DIR}/.nlc_config.sh" ]; then
+  source "${NLC_DIR}/.nlc_config.sh"
+else
+  printf "ERROR: NLC has not been configured.\n"
+  printf "  Please run './configure.sh' before building.\n"
+  exit 1
 fi
 
 # auto modulefile
-export NLC_DIR="${NLC_DIR}"
 if [ "${ENV_AUTO}" = true ] ; then
   auto_environment ${SYSTEM} ${ENV_DIR}
 fi
@@ -161,5 +165,9 @@ cd ${BUILD_DIR}
 cmake ${NLC_DIR} -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} ${CMAKE_SETTINGS}
 make -j ${BUILD_JOBS:-4} ${MAKE_SETTINGS}
 make install
+
+if [ "${TEST}" = true ]; then
+  make nlc_tests
+fi
 
 exit 0

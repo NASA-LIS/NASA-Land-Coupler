@@ -1,0 +1,46 @@
+# NASA Land Coupler Test Configuration
+#
+# This file defines the regression tests for the NASA-Land-Coupler-Data repository.
+#
+
+[[tests]]
+# Coupled LIS and WRF-Hydro simulation
+name = "LISWRFHYDRO"
+mpi = true
+processors = 4
+components = [ "LIS", "WRFHYDRO" ]
+input = [ "https://github.com/esmf-org/NASA-Land-Coupler-Data/releases/download/v0.1.0/nlc_testdata_001.tar.gz" ]
+[[tests.checks]]
+type = "nccmp"
+file = "LIS_OUTPUT/lw_pf/SURFACEMODEL/200501/LIS_HIST_200501020000.d01.nc"
+args = "--Tolerance=1e-1"
+
+[[tests]]
+# Coupled LIS and ParFlow simulation
+name = "LISPARFLOW"
+mpi = true
+processors = 4
+components = [ "LIS", "PARFLOW" ]
+[[tests.input]]
+file = "https://github.com/esmf-org/NASA-Land-Coupler-Data/releases/download/v0.1.0/nlc_testdata_002.tar.gz"
+[[tests.checks]]
+type = "nccmp"
+file = "LIS_OUTPUT/lw_pf/SURFACEMODEL/200501/LIS_HIST_200501020000.d01.nc"
+args = [ "--Tolerance=1e-1", "--variable=SoilMoist_tavg,SoilTemp_tavg,GWS_tavg"]
+
+# [[tests]]
+# # Example Test
+# name = "EXAMPLE"
+# mpi = true
+# processors = 4
+# input = [ "https://github.com/esmf-org/NASA-Land-Coupler-Data/releases/download/v0.1.0/nlc_testdata_00N.tar.gz" ]
+# components = [ "COMP" ]
+# [[tests.checks]]
+# type = "nccmp"
+# file = "path_to_file"
+# args = [
+#    "--join-tolerance",
+#     "--tolerance=1e1",
+#     "--Tolerance=1e1",
+#     "--variable=u10,v10,rainc,q2,t2m,pressure,smois"
+# ]

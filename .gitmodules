@@ -10,3 +10,7 @@
 	path = src/parflow
 	url = https://github.com/parflow/parflow.git
 	branch = master
+[submodule "src/MPAS-Model"]
+	path = src/MPAS-Model
+	url = https://github.com/NCAR/MPAS-Model-NUOPC-dev.git
+	branch = nuopc/03_standalone

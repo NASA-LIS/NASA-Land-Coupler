@@ -104,6 +104,7 @@ set   def_wrfhydro_netcdf /discover/nobackup/projects/lis/libs/sles-15.4/netcdf/
 set   def_parflow_hdf5    /discover/nobackup/projects/lis/libs/sles-15.4/hdf5/1.14.2_intel-2023.2.1
 set   def_parflow_hypre   /discover/nobackup/projects/nca/ParFlow_DATA/install/discover-15.4/hypre-2.31.0_intel-2023.2.1_impi-2021.11
 set   def_parflow_silo    /discover/nobackup/projects/nca/ParFlow_DATA/install/discover-15.4/silo-4.10.2_intel-2023.2.1_impi-2021.11
+set   def_mpas_pnetcdf    /discover/nobackup/dcrosen/projects_mpas/libs/sles-15.4/pnetcdf/1.14.1_intel-2023.2.1
 
 setenv   DEV_ENV         LISF_7_5_INTEL_2023_2_1
 setenv   LIS_ARCH        linux_ifc
@@ -173,6 +174,8 @@ setenv   PARFLOW_SILO_DIR      $def_parflow_silo
 setenv   PARFLOW_AMPS_LAYER    mpi1
 setenv   PARFLOW_HAVE_CLM      OFF
 setenv   PARFLOW               1
+
+setenv   PNETCDF               $def_mpas_pnetcdf
 
 setenv CMAKE_C_COMPILER       mpicc
 setenv CMAKE_CXX_COMPILER     mpicxx

@@ -1,0 +1,46 @@
+####################################################
+####  NASA Land Coupler runtime configuration  #####
+####################################################
+
+# optionally turn off a component (options are "yes" and "no")
+atm: yes
+lnd: no
+hyd: no
+med: no
+
+multi_instance_atm: false
+multi_instance_lnd: false
+multi_instance_hyd: false
+multi_instance_gwr: false
+
+# PET lists - if not set, use all PETs
+pets_atm: __PETLISTATM__ 
+#pets_lnd:
+#pets_hyd:
+#pets_med:
+
+# global clock
+time_step:  __TIMESTEP__
+start_time: __STARTTIME__
+stop_time:  __STOPTIME__
+
+# run sequence
+runSeq::
+    @__TIMESTEP__
+        ATM
+    @
+::
+
+# component attributes
+driverAttributes::
+  Verbosity = high
+  Profiling = 0
+  cpl_list = CPL_LIST_NNE
+::
+
+atmAttributes::
+  Verbosity = 1
+  Diagnostic = 0
+  Profiling = 0
+::
+

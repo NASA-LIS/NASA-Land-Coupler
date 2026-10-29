@@ -3,9 +3,9 @@
 #SBATCH --ntasks=__TASKS__
 #SBATCH --time=__TIME__
 #SBATCH --partition=compute
-#SBATCH --account=s1189
+#SBATCH --account=s3180
 #SBATCH --constraint=mil
-#SBATCH --qos=serial
+#SBATCH --qos=debug
 #SBATCH --output=job.log
 
 export NLC_DIR=${SLURM_SUBMIT_DIR}/../..

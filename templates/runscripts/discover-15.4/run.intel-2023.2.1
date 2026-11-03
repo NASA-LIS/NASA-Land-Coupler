@@ -5,7 +5,7 @@
 #SBATCH --partition=compute
 #SBATCH --account=s3180
 #SBATCH --constraint=mil
-#SBATCH --qos=debug
+#SBATCH --qos=allnccs
 #SBATCH --output=job.log
 
 export NLC_DIR=${SLURM_SUBMIT_DIR}/../..
